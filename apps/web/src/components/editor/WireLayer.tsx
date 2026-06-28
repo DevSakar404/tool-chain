@@ -40,7 +40,23 @@ export function WireLayer({ chain, validation }: Props) {
         sourceLayout = layoutMap.get(ref.from === "trigger" ? "trigger" : ref.from);
       }
 
-      if (!sourceLayout) continue;
+      if (!sourceLayout) {
+        // Only draw a stub if this is a step/trigger ref (not a literal) and it's dangling
+        if ("from" in ref && isDangling) {
+          const stubEndX = targetLayout.inputPort.x - 60;
+          const stubEndY = targetLayout.inputPort.y;
+          wires.push({
+            d: bezierPath(
+              stubEndX,
+              stubEndY,
+              targetLayout.inputPort.x,
+              targetLayout.inputPort.y,
+            ),
+            invalid: true,
+          });
+        }
+        continue;
+      }
 
       wires.push({
         d: bezierPath(
