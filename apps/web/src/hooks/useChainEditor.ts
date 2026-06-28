@@ -82,10 +82,6 @@ function computeValidation(chain: Chain, catalog: NodeCatalogEntry[]): Validatio
 
 // ── Reducer ──────────────────────────────────────────────────────────────────
 
-let _nextStepIndex = 1;
-function freshStepId(): string {
-  return `step-${Date.now()}-${_nextStepIndex++}`;
-}
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
@@ -146,7 +142,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const inputMapping: Record<string, Ref> = {};
       // Seed with empty inputMapping — validation will flag required fields as needs-wiring
       const newStep = {
-        stepId: freshStepId(),
+        stepId: `step-${crypto.randomUUID().slice(0, 8)}`,
         nodeId: action.nodeId,
         inputMapping,
       };

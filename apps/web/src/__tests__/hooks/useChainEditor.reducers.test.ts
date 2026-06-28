@@ -93,6 +93,7 @@ describe("editorReducer — REORDER_STEP", () => {
     });
     const s2Validation = state.validation.steps.find((v) => v.stepId === "s2");
     expect(s2Validation?.fields.length).toBeGreaterThan(0);
+    expect(s2Validation?.fields.every((f) => f.problem === "dangling-ref")).toBe(true);
     expect(state.validation.valid).toBe(false);
   });
 });
