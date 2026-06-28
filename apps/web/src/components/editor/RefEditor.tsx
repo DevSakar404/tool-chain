@@ -14,6 +14,7 @@ function refSource(ref: Ref | undefined): RefSource {
 
 interface Props {
   fieldName: string;
+  fieldType?: string;
   ref: Ref | undefined;
   stepIndex: number;
   allSteps: Step[];
@@ -24,6 +25,7 @@ interface Props {
 
 export function RefEditor({
   fieldName,
+  fieldType,
   ref: currentRef,
   stepIndex,
   allSteps,
@@ -81,11 +83,21 @@ export function RefEditor({
 
   return (
     <div className={`rounded-md border p-3 space-y-2 ${borderClass}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-mono font-medium">{fieldName}</span>
-        {hasProblem && (
-          <span className="text-xs text-destructive">needs wiring</span>
-        )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-mono font-medium truncate">{fieldName}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          {fieldType && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}
+            >
+              {fieldType}
+            </span>
+          )}
+          {hasProblem && (
+            <span className="text-[10px] text-destructive font-medium">needs wiring</span>
+          )}
+        </div>
       </div>
       {/* Source selector */}
       <div className="flex gap-1">

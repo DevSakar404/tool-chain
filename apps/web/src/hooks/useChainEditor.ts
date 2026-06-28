@@ -20,10 +20,12 @@ export type EditorAction =
   | { type: "INSERT_STEP"; nodeId: string; atIndex: number }
   | { type: "REMOVE_STEP"; stepId: string }
   | { type: "MARK_SAVED" }
+  | { type: "RUN_START" }
   | { type: "SET_RUN_STATUS"; stepId: string; status: StepStatus }
   | { type: "SET_RUN_RESULT"; result: unknown }
   | { type: "SET_RUN_ERROR"; message: string }
-  | { type: "CLEAR_RUN" };
+  | { type: "CLEAR_RUN" }
+  | { type: "LOAD_ERROR"; message: string };
 
 // ── Initial state ────────────────────────────────────────────────────────────
 
@@ -119,7 +121,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
 
     case "SET_TRIGGER":
-      return { ...state, trigger: action.payload };
+      return { ...state, trigger: action.payload, dirty: true };
 
     case "REORDER_STEP": {
       if (!state.chain) return state;
@@ -174,6 +176,12 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "MARK_SAVED":
       return { ...state, dirty: false };
 
+    case "RUN_START":
+      return {
+        ...state,
+        run: { active: true, stepStatuses: {}, result: null, error: null },
+      };
+
     case "SET_RUN_STATUS":
       return {
         ...state,
@@ -200,6 +208,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...state,
         run: { active: false, stepStatuses: {}, result: null, error: null },
       };
+
+    case "LOAD_ERROR":
+      return { ...state, loadError: action.message };
 
     default:
       return state;

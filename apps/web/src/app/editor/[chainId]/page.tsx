@@ -37,12 +37,23 @@ export default function EditorPage() {
         if (!cancelled) dispatch({ type: "LOAD", chain, catalog });
       })
       .catch((err: unknown) => {
-        console.error("Editor load error", err);
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Failed to load editor";
+          dispatch({ type: "LOAD_ERROR", message });
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [chainId, dispatch]);
+
+  if (state.loadError) {
+    return (
+      <div className="flex items-center justify-center h-screen text-destructive">
+        {state.loadError}
+      </div>
+    );
+  }
 
   if (!state.chain) {
     return (

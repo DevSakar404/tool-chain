@@ -29,18 +29,16 @@ export async function POST(
 
   const { engine } = getEngineBundle();
 
-  // Stream structured SSE events
+  // Stream structured SSE events — each step fires in real-time via onStep callback
   const stream = new ReadableStream({
     async start(controller) {
       const encode = (data: unknown): Uint8Array =>
         new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`);
 
       try {
-        const result = await engine.run(chainId, trigger);
-
-        for (const stepRun of result.stepRuns) {
-          controller.enqueue(encode({ event: "step", data: stepRun }));
-        }
+        const result = await engine.run(chainId, trigger, (evt) => {
+          controller.enqueue(encode({ event: "step", data: evt }));
+        });
 
         controller.enqueue(
           encode({

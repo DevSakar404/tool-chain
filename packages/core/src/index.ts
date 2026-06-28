@@ -13,7 +13,7 @@ export { SkillNode } from "./node/SkillNode.js";
 export { NodeRegistry } from "./registry/NodeRegistry.js";
 export { InputResolver } from "./engine/InputResolver.js";
 export { ChainEngine } from "./engine/ChainEngine.js";
-export type { RunResult } from "./engine/ChainEngine.js";
+export type { RunResult, StepProgressEvent } from "./engine/ChainEngine.js";
 
 // Nodes
 export { registerAll } from "./nodes/index.js";

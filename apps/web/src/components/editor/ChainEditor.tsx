@@ -25,17 +25,15 @@ export function ChainEditor({ state, dispatch }: Props) {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const [saving, setSaving] = useState(false);
 
-  const { run, running } = useChainRun({
-    onStep: (stepId, status) => {
-      dispatch({
-        type: "SET_RUN_STATUS",
-        stepId,
-        status: status as "pending" | "running" | "ok" | "error",
-      });
-    },
-    onDone: (result) => dispatch({ type: "SET_RUN_RESULT", result }),
-    onError: (message) => dispatch({ type: "SET_RUN_ERROR", message }),
-  });
+  const onStep = useCallback(
+    (stepId: string, status: string) =>
+      dispatch({ type: "SET_RUN_STATUS", stepId, status: status as "pending" | "running" | "ok" | "error" }),
+    [dispatch],
+  );
+  const onDone = useCallback((result: unknown) => dispatch({ type: "SET_RUN_RESULT", result }), [dispatch]);
+  const onError = useCallback((message: string) => dispatch({ type: "SET_RUN_ERROR", message }), [dispatch]);
+
+  const { run, running } = useChainRun({ onStep, onDone, onError });
 
   const handleSave = useCallback(async () => {
     if (!state.chain || !state.validation.valid || !state.dirty) return;
@@ -62,6 +60,7 @@ export function ChainEditor({ state, dispatch }: Props) {
   const handleRun = useCallback(async () => {
     if (!state.chain) return;
     dispatch({ type: "CLEAR_RUN" });
+    dispatch({ type: "RUN_START" });
     for (const step of state.chain.steps) {
       dispatch({ type: "SET_RUN_STATUS", stepId: step.stepId, status: "pending" });
     }
@@ -88,7 +87,7 @@ export function ChainEditor({ state, dispatch }: Props) {
         onSave={() => void handleSave()}
         onRun={() => void handleRun()}
         onZoomIn={() => setViewport((v) => ({ ...v, scale: Math.min(2, v.scale * 1.2) }))}
-        onZoomOut={() => setViewport((v) => ({ ...v, scale: Math.max(0.3, v.scale / 1.2) }))}
+        onZoomOut={() => setViewport((v) => ({ ...v, scale: Math.max(0.4, v.scale / 1.2) }))}
         onZoomFit={() => setViewport({ x: 0, y: 0, scale: 1 })}
       />
       <div className="flex flex-1 overflow-hidden">
@@ -97,8 +96,9 @@ export function ChainEditor({ state, dispatch }: Props) {
           insertAtIndex={state.chain.steps.length}
           dispatch={dispatch}
         />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1">
+        {/* Canvas + bottom panels + inspector overlay */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <div className="flex-1 relative overflow-hidden">
             <ChainCanvas
               chain={state.chain}
               catalog={state.catalog}
@@ -108,31 +108,38 @@ export function ChainEditor({ state, dispatch }: Props) {
               dispatch={dispatch}
               viewport={viewport}
               setViewport={setViewport}
+              onSave={() => void handleSave()}
+              onRun={() => void handleRun()}
+              onZoomIn={() => setViewport((v) => ({ ...v, scale: Math.min(2, v.scale * 1.2) }))}
+              onZoomOut={() => setViewport((v) => ({ ...v, scale: Math.max(0.4, v.scale / 1.2) }))}
+              onZoomFit={() => setViewport({ x: 0, y: 0, scale: 1 })}
             />
+            {/* Inspector drawer — overlays the canvas from the right */}
+            {selectedStep && (
+              <NodeInspector
+                step={selectedStep}
+                stepIndex={selectedStepIndex}
+                chain={state.chain}
+                catalog={state.catalog}
+                validation={state.validation}
+                dispatch={dispatch}
+              />
+            )}
           </div>
           {state.run.error && (
             <div className="border-t bg-destructive/10 px-4 py-2 text-sm text-destructive shrink-0">
               {state.run.error}
             </div>
           )}
-          {Boolean(state.run.result) && (
+          {state.run.result != null && (
             <div className="border-t bg-background overflow-y-auto max-h-64 p-4 shrink-0">
               <ResultView resume={state.run.result as ResumeDTO | null} />
             </div>
           )}
           <TriggerPanel trigger={state.trigger} dispatch={dispatch} />
         </div>
-        {selectedStep && (
-          <NodeInspector
-            step={selectedStep}
-            stepIndex={selectedStepIndex}
-            chain={state.chain}
-            catalog={state.catalog}
-            validation={state.validation}
-            dispatch={dispatch}
-          />
-        )}
       </div>
+
     </div>
   );
 }

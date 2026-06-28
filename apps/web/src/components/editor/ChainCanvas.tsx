@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect, useId } from "react";
 import type { Chain, NodeCatalogEntry } from "@tool-chain/core";
 import type { EditorAction } from "@/hooks/useChainEditor";
 import type { ValidationState, RunState } from "@/types/editor";
@@ -19,6 +19,13 @@ interface Props {
   dispatch: React.Dispatch<EditorAction>;
   viewport: Viewport;
   setViewport: React.Dispatch<React.SetStateAction<Viewport>>;
+  onOpenInspector?: () => void;
+  onCloseInspector?: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomFit?: () => void;
+  onSave?: () => void;
+  onRun?: () => void;
 }
 
 export function ChainCanvas({
@@ -30,9 +37,17 @@ export function ChainCanvas({
   dispatch,
   viewport,
   setViewport,
+  onOpenInspector,
+  onCloseInspector,
+  onZoomIn,
+  onZoomOut,
+  onZoomFit,
+  onSave,
+  onRun,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<{ startX: number; startY: number; vpX: number; vpY: number } | null>(null);
+  const dotPatternId = useId();
 
   const onMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if ((e.target as Element).closest("foreignObject")) return;
@@ -51,7 +66,7 @@ export function ChainCanvas({
       x: dragging.current!.vpX + (e.clientX - dragging.current!.startX),
       y: dragging.current!.vpY + (e.clientY - dragging.current!.startY),
     }));
-  }, []);
+  }, [setViewport]);
 
   const onMouseUp = useCallback(() => {
     dragging.current = null;
@@ -62,24 +77,101 @@ export function ChainCanvas({
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     setViewport((v) => ({
       ...v,
-      scale: Math.min(2, Math.max(0.3, v.scale * factor)),
+      scale: Math.min(2, Math.max(0.4, v.scale * factor)),
     }));
-  }, []);
+  }, [setViewport]);
+
+  // Keyboard shortcuts — attached to document so focus inside foreignObject buttons doesn't break them
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // Don't hijack events from text inputs, selects, or textareas
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+      const meta = e.metaKey || e.ctrlKey;
+
+      if (meta && e.key === "s") { e.preventDefault(); onSave?.(); return; }
+      if (meta && e.key === "Enter") { e.preventDefault(); onRun?.(); return; }
+      if (e.key === "=" || e.key === "+") { e.preventDefault(); onZoomIn?.(); return; }
+      if (e.key === "-") { e.preventDefault(); onZoomOut?.(); return; }
+      if (e.key === "0") { e.preventDefault(); onZoomFit?.(); return; }
+
+      if (e.key === "Escape") {
+        onCloseInspector?.();
+        dispatch({ type: "SET_SELECTION", stepId: null });
+        return;
+      }
+      if (e.key === "Enter" && !meta) {
+        if (selectedStepId) { onOpenInspector?.(); }
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedStepId) {
+        e.preventDefault();
+        dispatch({ type: "REMOVE_STEP", stepId: selectedStepId });
+        return;
+      }
+
+      // Tab cycles through nodes
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const ids = chain.steps.map((s) => s.stepId);
+        if (ids.length === 0) return;
+        const currentIdx = ids.indexOf(selectedStepId ?? "");
+        const nextIdx = e.shiftKey
+          ? (currentIdx - 1 + ids.length) % ids.length
+          : (currentIdx + 1) % ids.length;
+        dispatch({ type: "SET_SELECTION", stepId: ids[nextIdx]! });
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedStepId, chain.steps, dispatch, onSave, onRun, onZoomIn, onZoomOut, onZoomFit, onOpenInspector, onCloseInspector]);
 
   const layouts = computeLayout(chain.steps.map((s) => s.stepId));
   const layoutMap = new Map(layouts.map((l) => [l.id, l]));
   const triggerLayout = layoutMap.get("trigger")!;
 
+  // Dot opacity scales down as you zoom out so they fade at low zoom
+  const dotOpacity = Math.min(1, Math.max(0, (viewport.scale - 0.4) / 0.6));
+
   return (
     <svg
       ref={svgRef}
+      aria-label="Chain editor canvas"
+      role="application"
       className="w-full h-full cursor-grab active:cursor-grabbing"
+      style={{ background: "hsl(var(--canvas-bg))" }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
       onWheel={onWheel}
     >
+      <defs>
+        {/* 20px dot grid pattern */}
+        <pattern
+          id={dotPatternId}
+          x="0"
+          y="0"
+          width="20"
+          height="20"
+          patternUnits="userSpaceOnUse"
+          patternTransform={`translate(${viewport.x % 20},${viewport.y % 20})`}
+        >
+          <circle
+            cx="1"
+            cy="1"
+            r="0.8"
+            fill="hsl(var(--canvas-dot))"
+            opacity={dotOpacity}
+          />
+        </pattern>
+      </defs>
+
+      {/* Dot grid backdrop */}
+      <rect width="100%" height="100%" fill={`url(#${dotPatternId})`} aria-hidden="true" />
+
       <g transform={`translate(${viewport.x},${viewport.y}) scale(${viewport.scale})`}>
         {/* Trigger pseudo-node */}
         <rect
@@ -88,34 +180,64 @@ export function ChainCanvas({
           width={TRIGGER_WIDTH}
           height={TRIGGER_HEIGHT}
           rx={8}
-          className="fill-muted stroke-border"
+          fill="hsl(var(--card))"
+          stroke="hsl(var(--kind-trigger))"
           strokeWidth={2}
+        />
+        {/* Trigger kind rail */}
+        <rect
+          x={triggerLayout.x}
+          y={triggerLayout.y}
+          width={4}
+          height={TRIGGER_HEIGHT}
+          rx={4}
+          fill="hsl(var(--kind-trigger))"
+          aria-hidden="true"
         />
         <text
           x={triggerLayout.x + TRIGGER_WIDTH / 2}
-          y={triggerLayout.y + TRIGGER_HEIGHT / 2 - 4}
+          y={triggerLayout.y + TRIGGER_HEIGHT / 2 - 6}
           textAnchor="middle"
-          className="fill-foreground text-xs font-mono"
+          fill="hsl(var(--foreground))"
           fontSize={12}
-          fontFamily="monospace"
+          fontFamily="ui-monospace, monospace"
+          fontWeight="600"
         >
           trigger
         </text>
-        {/* Port dot — output */}
+        <text
+          x={triggerLayout.x + TRIGGER_WIDTH / 2}
+          y={triggerLayout.y + TRIGGER_HEIGHT / 2 + 8}
+          textAnchor="middle"
+          fill="hsl(var(--kind-trigger))"
+          fontSize={9}
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+          fontWeight="600"
+          letterSpacing="0.06em"
+        >
+          TRIGGER
+        </text>
+        {/* Trigger output port */}
         <circle
           cx={triggerLayout.outputPort.x}
           cy={triggerLayout.outputPort.y}
           r={5}
-          className="fill-primary"
+          fill="hsl(var(--accent-flow))"
         />
 
-        {/* Wires */}
-        <WireLayer chain={chain} validation={validation} />
+        {/* Wires — rendered below cards */}
+        <WireLayer
+          chain={chain}
+          validation={validation}
+          selectedStepId={selectedStepId}
+          runStatuses={run.stepStatuses}
+        />
 
         {/* Step cards */}
         {chain.steps.map((step) => {
           const layout = layoutMap.get(step.stepId);
           if (!layout) return null;
+          const isSelected = selectedStepId === step.stepId;
           return (
             <g key={step.stepId}>
               {/* Input port */}
@@ -123,21 +245,21 @@ export function ChainCanvas({
                 cx={layout.inputPort.x}
                 cy={layout.inputPort.y}
                 r={5}
-                className="fill-muted-foreground"
+                fill={isSelected ? "hsl(var(--accent-flow))" : "hsl(var(--muted-foreground))"}
               />
               {/* Output port */}
               <circle
                 cx={layout.outputPort.x}
                 cy={layout.outputPort.y}
                 r={5}
-                className="fill-primary"
+                fill={isSelected ? "hsl(var(--accent-flow))" : "hsl(var(--muted-foreground))"}
               />
               <NodeCard
                 step={step}
                 catalogEntry={catalog.find((c) => c.id === step.nodeId)}
                 x={layout.x}
                 y={layout.y}
-                selected={selectedStepId === step.stepId}
+                selected={isSelected}
                 status={run.stepStatuses[step.stepId]}
                 validation={validation}
                 onClick={() =>
@@ -148,7 +270,7 @@ export function ChainCanvas({
                 }
                 onDelete={() => dispatch({ type: "REMOVE_STEP", stepId: step.stepId })}
               />
-              {selectedStepId === step.stepId && (() => {
+              {isSelected && (() => {
                 const idx = chain.steps.findIndex((s) => s.stepId === step.stepId);
                 return (
                   <foreignObject
@@ -185,6 +307,8 @@ export function ChainCanvas({
             </g>
           );
         })}
+
+        {/* Zoom controls — bottom-right, fixed in canvas space */}
       </g>
     </svg>
   );

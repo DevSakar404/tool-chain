@@ -7,6 +7,10 @@ import { InputResolver } from "./InputResolver.js";
 import { NodeNotFoundError } from "../errors/index.js";
 import { toSafeError } from "../node/BaseNode.js";
 
+export type StepProgressEvent =
+  | { event: "step:running"; stepId: string; nodeId: string }
+  | { event: "step:done"; stepRun: StepRunRecord };
+
 export interface ChainEngineOptions {
   registry: NodeRegistry;
   chainRepo: IChainRepository;
@@ -27,7 +31,11 @@ export class ChainEngine {
 
   constructor(private readonly opts: ChainEngineOptions) {}
 
-  async run(chainId: string, trigger: Record<string, unknown>): Promise<RunResult> {
+  async run(
+    chainId: string,
+    trigger: Record<string, unknown>,
+    onStep?: (evt: StepProgressEvent) => void,
+  ): Promise<RunResult> {
     const chain = await this.opts.chainRepo.findById(chainId);
     if (!chain) {
       throw new NodeNotFoundError(`chain:${chainId}`);
@@ -61,9 +69,11 @@ export class ChainEngine {
         resolvedInput = this.resolver.resolve(step.inputMapping, trigger, stepOutputs);
       } catch (e) {
         const error = toSafeError(e);
+        onStep?.({ event: "step:running", stepId: step.stepId, nodeId: step.nodeId });
         const stepRun = this.makeStepRun(stepRunId, runId, step.stepId, step.nodeId, "failed", {}, undefined, error, startedAt);
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
+        onStep?.({ event: "step:done", stepRun });
         await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date() });
         ctx.logger.error("Input resolution failed", { stepId: step.stepId, error });
         return { runId, ok: false, error, stepRuns };
@@ -82,6 +92,9 @@ export class ChainEngine {
         return { runId, ok: false, error, stepRuns };
       }
 
+      // Emit running event before execution
+      onStep?.({ event: "step:running", stepId: step.stepId, nodeId: step.nodeId });
+
       // Execute node
       const result = await node.execute(resolvedInput, ctx);
       const finishedAt = new Date();
@@ -90,6 +103,7 @@ export class ChainEngine {
         const stepRun = this.makeStepRun(stepRunId, runId, step.stepId, step.nodeId, "ok", resolvedInput, result.output, undefined, startedAt, finishedAt);
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
+        onStep?.({ event: "step:done", stepRun });
         stepOutputs.set(step.stepId, result.output);
         lastOutput = result.output;
         ctx.logger.info("Step ok", { stepId: step.stepId, nodeId: step.nodeId });
@@ -98,6 +112,7 @@ export class ChainEngine {
         const stepRun = this.makeStepRun(stepRunId, runId, step.stepId, step.nodeId, "failed", resolvedInput, undefined, result.error, startedAt, finishedAt);
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
+        onStep?.({ event: "step:done", stepRun });
         await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date() });
         ctx.logger.error("Step failed", { stepId: step.stepId, kind: result.kind, error: result.error });
         return { runId, ok: false, error: result.error, stepRuns };

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ResultView } from "@/components/ResultView";
+import { RunStatusCard } from "@/components/RunStatusCard";
 import type { ResumeDTO } from "@tool-chain/core";
 
 interface RunEvent {
@@ -15,8 +16,31 @@ export default function HomePage() {
   const [result, setResult] = useState<ResumeDTO | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [stepLog, setStepLog] = useState<string[]>([]);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const chainId = process.env["NEXT_PUBLIC_RESUME_CHAIN_ID"] ?? "";
+
+  function startTimer() {
+    startedAtRef.current = Date.now();
+    setElapsedMs(0);
+    timerRef.current = setInterval(() => {
+      setElapsedMs(Date.now() - (startedAtRef.current ?? Date.now()));
+    }, 100);
+  }
+
+  function stopTimer() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (startedAtRef.current !== null) {
+      setElapsedMs(Date.now() - startedAtRef.current);
+    }
+  }
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +50,7 @@ export default function HomePage() {
     setResult(null);
     setErrorMsg(null);
     setStepLog([]);
+    startTimer();
 
     try {
       const res = await fetch(`/api/chains/${chainId}/run`, {
@@ -64,10 +89,17 @@ export default function HomePage() {
           }
 
           if (evt.event === "step") {
-            const stepData = evt.data as { stepId: string; status: string };
-            setStepLog((prev) => [...prev, `Step ${stepData.stepId}: ${stepData.status}`]);
+            const stepEvt = evt.data as
+              | { event: "step:running"; stepId: string }
+              | { event: "step:done"; stepRun: { stepId: string; status: "ok" | "failed" } };
+            if (stepEvt.event === "step:running") {
+              setStepLog((prev) => [...prev, `Step ${stepEvt.stepId}: running`]);
+            } else {
+              setStepLog((prev) => [...prev, `Step ${stepEvt.stepRun.stepId}: ${stepEvt.stepRun.status}`]);
+            }
           } else if (evt.event === "done") {
             const doneData = evt.data as { ok: boolean; output?: ResumeDTO; error?: { message: string } };
+            stopTimer();
             if (doneData.ok && doneData.output) {
               setResult(doneData.output);
               setStatus("done");
@@ -77,12 +109,14 @@ export default function HomePage() {
             }
           } else if (evt.event === "error") {
             const errData = evt.data as { message: string };
+            stopTimer();
             setErrorMsg(errData.message);
             setStatus("error");
           }
         }
       }
     } catch (e) {
+      stopTimer();
       setErrorMsg(e instanceof Error ? e.message : "Unknown error");
       setStatus("error");
     }
@@ -115,21 +149,12 @@ export default function HomePage() {
         </button>
       </form>
 
-      {stepLog.length > 0 && (
-        <div className="mb-6 space-y-1">
-          {stepLog.map((s, i) => (
-            <p key={i} className="text-xs text-muted-foreground font-mono">
-              {s}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {status === "error" && errorMsg && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive mb-6">
-          {errorMsg}
-        </div>
-      )}
+      <RunStatusCard
+        status={status}
+        stepLog={stepLog}
+        elapsedMs={elapsedMs}
+        errorMsg={errorMsg}
+      />
 
       {/* gen-UI swap point — isolated ResultView */}
       <ResultView resume={result} />
