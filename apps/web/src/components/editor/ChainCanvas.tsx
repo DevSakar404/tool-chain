@@ -6,7 +6,7 @@ import type { EditorAction } from "@/hooks/useChainEditor";
 import type { ValidationState, RunState } from "@/types/editor";
 import { NodeCard } from "./NodeCard";
 import { WireLayer } from "./WireLayer";
-import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT } from "./layout";
+import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_HEIGHT } from "./layout";
 
 interface Props {
   chain: Chain;
@@ -141,7 +141,42 @@ export function ChainCanvas({
                     stepId: selectedStepId === step.stepId ? null : step.stepId,
                   })
                 }
+                onDelete={() => dispatch({ type: "REMOVE_STEP", stepId: step.stepId })}
               />
+              {selectedStepId === step.stepId && (() => {
+                const idx = chain.steps.findIndex((s) => s.stepId === step.stepId);
+                return (
+                  <foreignObject
+                    x={layout.x}
+                    y={layout.y + CARD_HEIGHT + 4}
+                    width={220}
+                    height={28}
+                  >
+                    <div className="flex justify-center gap-2">
+                      {idx > 0 && (
+                        <button
+                          className="text-xs px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                          onClick={() =>
+                            dispatch({ type: "REORDER_STEP", stepId: step.stepId, toIndex: idx - 1 })
+                          }
+                        >
+                          ← Move left
+                        </button>
+                      )}
+                      {idx < chain.steps.length - 1 && (
+                        <button
+                          className="text-xs px-2 py-1 rounded border border-border bg-background hover:bg-muted"
+                          onClick={() =>
+                            dispatch({ type: "REORDER_STEP", stepId: step.stepId, toIndex: idx + 1 })
+                          }
+                        >
+                          Move right →
+                        </button>
+                      )}
+                    </div>
+                  </foreignObject>
+                );
+              })()}
             </g>
           );
         })}

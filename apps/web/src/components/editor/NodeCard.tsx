@@ -11,6 +11,7 @@ interface Props {
   status: StepStatus | undefined;
   validation: ValidationState;
   onClick: () => void;
+  onDelete: () => void;
 }
 
 const STATUS_COLORS: Record<StepStatus, string> = {
@@ -29,6 +30,7 @@ export function NodeCard({
   status,
   validation,
   onClick,
+  onDelete,
 }: Props) {
   const hasError = validation.steps.some((v) => v.stepId === step.stepId);
   const borderColor = selected
@@ -46,11 +48,25 @@ export function NodeCard({
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-mono truncate">{step.nodeId}</span>
-          <span
-            className={`text-xs rounded-full px-1.5 py-0.5 bg-muted ${catalogEntry?.kind === "skill" ? "text-purple-600" : "text-blue-600"}`}
-          >
-            {catalogEntry?.kind ?? "?"}
-          </span>
+          <div className="flex items-center gap-1">
+            <span
+              className={`text-xs rounded-full px-1.5 py-0.5 bg-muted ${catalogEntry?.kind === "skill" ? "text-purple-600" : "text-blue-600"}`}
+            >
+              {catalogEntry?.kind ?? "?"}
+            </span>
+            {selected && (
+              <button
+                className="text-xs rounded px-1 py-0.5 text-destructive hover:bg-destructive/10 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                title="Remove step"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground truncate">

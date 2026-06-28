@@ -4,6 +4,7 @@ import type { EditorState } from "@/types/editor";
 import type { EditorAction } from "@/hooks/useChainEditor";
 import { ChainCanvas } from "./ChainCanvas";
 import { NodeInspector } from "./NodeInspector";
+import { NodePalette } from "./NodePalette";
 
 interface Props {
   state: EditorState;
@@ -29,6 +30,11 @@ export function ChainEditor({ state, dispatch }: Props) {
         )}
       </div>
       <div className="flex flex-1 overflow-hidden">
+        <NodePalette
+          catalog={state.catalog}
+          insertAtIndex={state.chain.steps.length}
+          dispatch={dispatch}
+        />
         <div className="flex-1">
           <ChainCanvas
             chain={state.chain}
