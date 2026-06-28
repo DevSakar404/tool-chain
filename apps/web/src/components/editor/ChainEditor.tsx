@@ -3,6 +3,7 @@
 import type { EditorState } from "@/types/editor";
 import type { EditorAction } from "@/hooks/useChainEditor";
 import { ChainCanvas } from "./ChainCanvas";
+import { NodeInspector } from "./NodeInspector";
 
 interface Props {
   state: EditorState;
@@ -11,6 +12,13 @@ interface Props {
 
 export function ChainEditor({ state, dispatch }: Props) {
   if (!state.chain) return null;
+
+  const selectedStep = state.chain.steps.find(
+    (s) => s.stepId === state.selectedStepId,
+  );
+  const selectedStepIndex = state.chain.steps.findIndex(
+    (s) => s.stepId === state.selectedStepId,
+  );
 
   return (
     <div className="flex flex-col h-screen">
@@ -31,6 +39,16 @@ export function ChainEditor({ state, dispatch }: Props) {
             dispatch={dispatch}
           />
         </div>
+        {selectedStep && (
+          <NodeInspector
+            step={selectedStep}
+            stepIndex={selectedStepIndex}
+            chain={state.chain}
+            catalog={state.catalog}
+            validation={state.validation}
+            dispatch={dispatch}
+          />
+        )}
       </div>
     </div>
   );
