@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { ResumeDTO } from "@tool-chain/core";
 import type { EditorState } from "@/types/editor";
 import type { EditorAction } from "@/hooks/useChainEditor";
+import { useChainRun } from "@/hooks/useChainRun";
 import { ChainCanvas } from "./ChainCanvas";
 import { NodeInspector } from "./NodeInspector";
 import { NodePalette } from "./NodePalette";
 import { Toolbar } from "./Toolbar";
 import { TriggerPanel } from "./TriggerPanel";
+import { ResultView } from "@/components/ResultView";
 
 const API_SECRET = process.env["NEXT_PUBLIC_RUN_API_SECRET"] ?? "";
 
@@ -21,6 +24,18 @@ interface Props {
 export function ChainEditor({ state, dispatch }: Props) {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const [saving, setSaving] = useState(false);
+
+  const { run, running } = useChainRun({
+    onStep: (stepId, status) => {
+      dispatch({
+        type: "SET_RUN_STATUS",
+        stepId,
+        status: status as "pending" | "running" | "ok" | "error",
+      });
+    },
+    onDone: (result) => dispatch({ type: "SET_RUN_RESULT", result }),
+    onError: (message) => dispatch({ type: "SET_RUN_ERROR", message }),
+  });
 
   const handleSave = useCallback(async () => {
     if (!state.chain || !state.validation.valid || !state.dirty) return;
@@ -44,6 +59,15 @@ export function ChainEditor({ state, dispatch }: Props) {
     }
   }, [state.chain, state.validation.valid, state.dirty, dispatch]);
 
+  const handleRun = useCallback(async () => {
+    if (!state.chain) return;
+    dispatch({ type: "CLEAR_RUN" });
+    for (const step of state.chain.steps) {
+      dispatch({ type: "SET_RUN_STATUS", stepId: step.stepId, status: "pending" });
+    }
+    await run(state.chain.id, state.trigger);
+  }, [state.chain, state.trigger, run, dispatch]);
+
   if (!state.chain) return null;
 
   const selectedStep = state.chain.steps.find(
@@ -60,7 +84,9 @@ export function ChainEditor({ state, dispatch }: Props) {
         dirty={state.dirty}
         valid={state.validation.valid}
         saving={saving}
+        running={running}
         onSave={() => void handleSave()}
+        onRun={() => void handleRun()}
         onZoomIn={() => setViewport((v) => ({ ...v, scale: Math.min(2, v.scale * 1.2) }))}
         onZoomOut={() => setViewport((v) => ({ ...v, scale: Math.max(0.3, v.scale / 1.2) }))}
         onZoomFit={() => setViewport({ x: 0, y: 0, scale: 1 })}
@@ -84,6 +110,16 @@ export function ChainEditor({ state, dispatch }: Props) {
               setViewport={setViewport}
             />
           </div>
+          {state.run.error && (
+            <div className="border-t bg-destructive/10 px-4 py-2 text-sm text-destructive shrink-0">
+              {state.run.error}
+            </div>
+          )}
+          {Boolean(state.run.result) && (
+            <div className="border-t bg-background overflow-y-auto max-h-64 p-4 shrink-0">
+              <ResultView resume={state.run.result as ResumeDTO | null} />
+            </div>
+          )}
           <TriggerPanel trigger={state.trigger} dispatch={dispatch} />
         </div>
         {selectedStep && (

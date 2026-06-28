@@ -5,7 +5,9 @@ interface Props {
   dirty: boolean;
   valid: boolean;
   saving: boolean;
+  running: boolean;
   onSave: () => void;
+  onRun: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomFit: () => void;
@@ -16,12 +18,15 @@ export function Toolbar({
   dirty,
   valid,
   saving,
+  running,
   onSave,
+  onRun,
   onZoomIn,
   onZoomOut,
   onZoomFit,
 }: Props) {
-  const canSave = dirty && valid && !saving;
+  const canSave = dirty && valid && !saving && !running;
+  const canRun = !dirty && valid && !running && !saving;
 
   return (
     <div className="border-b bg-background px-4 py-2 flex items-center gap-3 shrink-0">
@@ -34,7 +39,7 @@ export function Toolbar({
         )}
         {dirty && valid && (
           <span className="ml-2 text-xs text-muted-foreground font-normal">
-            • unsaved
+            • unsaved changes — save before running
           </span>
         )}
       </span>
@@ -64,9 +69,16 @@ export function Toolbar({
       <button
         onClick={onSave}
         disabled={!canSave}
-        className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+        className="text-xs px-3 py-1.5 rounded border border-border font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted transition-colors"
       >
         {saving ? "Saving…" : "Save"}
+      </button>
+      <button
+        onClick={onRun}
+        disabled={!canRun}
+        className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+      >
+        {running ? "Running…" : "Run"}
       </button>
     </div>
   );
