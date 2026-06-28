@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import type { Chain, NodeCatalogEntry } from "@tool-chain/core";
 import type { EditorAction } from "@/hooks/useChainEditor";
 import type { ValidationState, RunState } from "@/types/editor";
 import { NodeCard } from "./NodeCard";
 import { WireLayer } from "./WireLayer";
 import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_HEIGHT, CARD_WIDTH } from "./layout";
+
+interface Viewport { x: number; y: number; scale: number }
 
 interface Props {
   chain: Chain;
@@ -15,6 +17,8 @@ interface Props {
   validation: ValidationState;
   run: RunState;
   dispatch: React.Dispatch<EditorAction>;
+  viewport: Viewport;
+  setViewport: React.Dispatch<React.SetStateAction<Viewport>>;
 }
 
 export function ChainCanvas({
@@ -24,9 +28,10 @@ export function ChainCanvas({
   validation,
   run,
   dispatch,
+  viewport,
+  setViewport,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
   const dragging = useRef<{ startX: number; startY: number; vpX: number; vpY: number } | null>(null);
 
   const onMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
