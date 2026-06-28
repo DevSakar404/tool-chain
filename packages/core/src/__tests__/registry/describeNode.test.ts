@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import { describeNode } from "../../registry/describeNode.js";
 import { driveDownloadFileNode } from "../../nodes/tools/drive.download_file.js";
 import { documentExtractTextNode } from "../../nodes/tools/document.extract_text.js";
@@ -46,13 +47,22 @@ describe("describeNode", () => {
     expect(exp?.type).toBe("object");
   });
 
-  it("marks optional fields as required=false", () => {
-    const entry = describeNode(resumeParseFieldsNode);
-    // keyProjects and college are required; triggerSchemaName on chain is optional —
-    // here test resume: endDate inside experience is optional, but collapsed.
-    // Instead, verify ALL outputFields have a boolean required property.
-    for (const f of entry.outputFields) {
-      expect(typeof f.required).toBe("boolean");
-    }
+  it("marks optional ZodOptional fields as required=false", () => {
+    const syntheticNode = {
+      id: "test.synthetic",
+      kind: "tool" as const,
+      description: "Synthetic test node",
+      inputSchema: z.object({
+        required_field: z.string(),
+        optional_field: z.string().optional(),
+      }),
+      outputSchema: z.object({ result: z.string() }),
+      execute: async () => ({ ok: true as const, output: { result: "" } }),
+    };
+    const entry = describeNode(syntheticNode as unknown as import("../../contracts/INode.js").INode);
+    const requiredField = entry.inputFields.find((f) => f.name === "required_field");
+    const optionalField = entry.inputFields.find((f) => f.name === "optional_field");
+    expect(requiredField?.required).toBe(true);
+    expect(optionalField?.required).toBe(false);
   });
 });
