@@ -6,7 +6,7 @@ import type { EditorAction } from "@/hooks/useChainEditor";
 import type { ValidationState, RunState } from "@/types/editor";
 import { NodeCard } from "./NodeCard";
 import { WireLayer } from "./WireLayer";
-import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_HEIGHT } from "./layout";
+import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_HEIGHT, CARD_WIDTH } from "./layout";
 
 interface Props {
   chain: Chain;
@@ -149,7 +149,7 @@ export function ChainCanvas({
                   <foreignObject
                     x={layout.x}
                     y={layout.y + CARD_HEIGHT + 4}
-                    width={220}
+                    width={CARD_WIDTH}
                     height={28}
                   >
                     <div className="flex justify-center gap-2">
