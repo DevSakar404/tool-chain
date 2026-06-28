@@ -1,0 +1,21 @@
+Jane Doe
+Software Engineer | jane.doe@example.com | github.com/janedoe
+
+EDUCATION
+Massachusetts Institute of Technology (MIT)
+B.Sc. Computer Science, 2018
+
+EXPERIENCE
+Acme Corp — Senior Software Engineer
+January 2021 – Present
+Led backend architecture for the distributed data pipeline processing 500K events/day.
+Migrated monolith to microservices; reduced p99 latency by 40%.
+
+StartupXYZ — Software Engineer
+June 2019 – December 2020
+Built core API layer in Node.js/TypeScript. Owned CI/CD pipeline.
+
+KEY PROJECTS
+- ProjectX: Real-time analytics platform (Kafka + Flink + Clickhouse)
+- ResumeAI: LLM-powered resume parser (this project!)
+- OpenSearch migration: Reduced search latency from 800ms to 60ms

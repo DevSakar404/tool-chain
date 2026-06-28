@@ -1,0 +1,24 @@
+{
+  "name": "Jane Doe",
+  "college": "Massachusetts Institute of Technology (MIT)",
+  "experience": [
+    {
+      "company": "Acme Corp",
+      "role": "Senior Software Engineer",
+      "startDate": "2021-01",
+      "summary": "Led backend architecture for the distributed data pipeline processing 500K events/day."
+    },
+    {
+      "company": "StartupXYZ",
+      "role": "Software Engineer",
+      "startDate": "2019-06",
+      "endDate": "2020-12",
+      "summary": "Built core API layer in Node.js/TypeScript. Owned CI/CD pipeline."
+    }
+  ],
+  "keyProjects": [
+    "ProjectX: Real-time analytics platform (Kafka + Flink + Clickhouse)",
+    "ResumeAI: LLM-powered resume parser (this project!)",
+    "OpenSearch migration: Reduced search latency from 800ms to 60ms"
+  ]
+}

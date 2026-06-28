@@ -1,0 +1,119 @@
+import "server-only";
+import { NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { buildEngine } from "@tool-chain/core";
+
+// Lazily instantiated once per cold start
+let engineBundle: ReturnType<typeof buildEngine> | null = null;
+
+function getEngine(): ReturnType<typeof buildEngine> {
+  if (!engineBundle) {
+    const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
+    const supabaseKey = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
+    const db = createClient(supabaseUrl, supabaseKey);
+
+    engineBundle = buildEngine({
+      db,
+      googleAccessToken: process.env["GOOGLE_ACCESS_TOKEN"] ?? "",
+      anthropicApiKey: process.env["ANTHROPIC_API_KEY"] ?? "",
+      ...(process.env["LLM_MODEL"] !== undefined ? { llmModel: process.env["LLM_MODEL"] } : {}),
+      ...(process.env["STORAGE_BUCKET"] !== undefined ? { storageBucket: process.env["STORAGE_BUCKET"] } : {}),
+    });
+  }
+  return engineBundle;
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  // Auth gate (D15) — shared secret
+  const secret = request.headers.get("x-run-secret");
+  if (!secret || secret !== process.env["RUN_API_SECRET"]) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { id: chainId } = await params;
+
+  let trigger: Record<string, unknown>;
+  try {
+    trigger = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { engine } = getEngine();
+
+  // Stream structured SSE events
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encode = (data: unknown): Uint8Array =>
+        new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`);
+
+      try {
+        const result = await engine.run(chainId, trigger);
+
+        for (const stepRun of result.stepRuns) {
+          controller.enqueue(encode({ event: "step", data: stepRun }));
+        }
+
+        controller.enqueue(
+          encode({
+            event: "done",
+            data: {
+              runId: result.runId,
+              ok: result.ok,
+              output: result.ok ? result.output : undefined,
+              error: result.ok ? undefined : result.error,
+            },
+          }),
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Internal error";
+        controller.enqueue(encode({ event: "error", data: { message: msg } }));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+/**
+ * GET on the run endpoint is not supported — this route executes a chain and
+ * must be POSTed. Return a clear, actionable message instead of a bare 405 so
+ * someone opening the URL in a browser understands how to call it correctly.
+ */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const { id } = await params;
+  return new Response(
+    JSON.stringify({
+      error: "Method Not Allowed",
+      message:
+        "This endpoint runs a chain and only accepts POST. Send a POST request with the 'x-run-secret' header and a JSON body.",
+      example: {
+        method: "POST",
+        url: `/api/chains/${id}/run`,
+        headers: { "Content-Type": "application/json", "x-run-secret": "<RUN_API_SECRET>" },
+        body: { fileId: "<google-drive-file-id>" },
+      },
+    }),
+    { status: 405, headers: { "Content-Type": "application/json", Allow: "POST" } },
+  );
+}
