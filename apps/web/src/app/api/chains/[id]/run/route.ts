@@ -1,27 +1,6 @@
 import "server-only";
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { buildEngine } from "@tool-chain/core";
-
-// Lazily instantiated once per cold start
-let engineBundle: ReturnType<typeof buildEngine> | null = null;
-
-function getEngine(): ReturnType<typeof buildEngine> {
-  if (!engineBundle) {
-    const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
-    const supabaseKey = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
-    const db = createClient(supabaseUrl, supabaseKey);
-
-    engineBundle = buildEngine({
-      db,
-      googleAccessToken: process.env["GOOGLE_ACCESS_TOKEN"] ?? "",
-      anthropicApiKey: process.env["ANTHROPIC_API_KEY"] ?? "",
-      ...(process.env["LLM_MODEL"] !== undefined ? { llmModel: process.env["LLM_MODEL"] } : {}),
-      ...(process.env["STORAGE_BUCKET"] !== undefined ? { storageBucket: process.env["STORAGE_BUCKET"] } : {}),
-    });
-  }
-  return engineBundle;
-}
+import { getEngineBundle } from "@/lib/engineSingleton";
 
 export async function POST(
   request: NextRequest,
@@ -48,7 +27,7 @@ export async function POST(
     });
   }
 
-  const { engine } = getEngine();
+  const { engine } = getEngineBundle();
 
   // Stream structured SSE events
   const stream = new ReadableStream({
