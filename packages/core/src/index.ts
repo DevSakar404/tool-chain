@@ -22,5 +22,9 @@ export { ResumeDTOSchema, type ResumeDTO } from "./nodes/skills/resume.parse_fie
 // DI
 export { buildEngine, type BuildEngineOptions, type EngineBundle } from "./di/buildEngine.js";
 
+// Registry helpers
+export { describeNode } from "./registry/describeNode.js";
+export type { NodeCatalogEntry, NodeFieldDescriptor } from "./registry/describeNode.js";
+
 // Infra (re-exported for use in apps/web — supabase dep lives in app, not core)
 export { ConsoleLogger } from "./infra/logging/ConsoleLogger.js";

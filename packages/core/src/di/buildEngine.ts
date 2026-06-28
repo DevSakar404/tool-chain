@@ -9,6 +9,7 @@ import { SupabaseStorage } from "../infra/supabase/SupabaseStorage.js";
 import { ConsoleLogger } from "../infra/logging/ConsoleLogger.js";
 import type { IRunContext } from "../contracts/IRunContext.js";
 import type { SafeError } from "../contracts/dtos.js";
+import type { IChainRepository } from "../contracts/IRepositories.js";
 import type { SupabaseDb, SupabaseClientLike } from "../infra/supabase/SupabaseTypes.js";
 
 export interface BuildEngineOptions {
@@ -34,6 +35,7 @@ export interface BuildEngineOptions {
 export interface EngineBundle {
   engine: ChainEngine;
   registry: NodeRegistry;
+  chainRepository: IChainRepository;
 }
 
 /**
@@ -73,7 +75,7 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
 
   const engine = new ChainEngine({ registry, chainRepo, runRepo, ctxFactory });
 
-  return { engine, registry };
+  return { engine, registry, chainRepository: chainRepo };
 }
 
 /**
