@@ -37,9 +37,14 @@ export class ResumeParseFieldsNode extends BaseNode<Input, ResumeDTO> {
   readonly description =
     "Parse raw resume text into a structured ResumeDTO using LLM generateObject. Malformed output → OutputInvalid.";
 
+  // No preferredLLM declared → this node uses the global default provider
+  // (anthropic). To pin it to a specific provider later, set:
+  //   readonly preferredLLM: LLMTarget = { provider: "gemini" };
+  // The future tool-registry "preferred LLM" column will source this field.
+
   protected override async run(input: Input, ctx: IRunContext): Promise<ResumeDTO> {
     ctx.logger.info("Parsing resume fields", { textLength: input.text.length });
-    return ctx.llm.generateObject<ResumeDTO>(ResumeDTOSchema, SYSTEM_PROMPT, input);
+    return ctx.llm.generateObject<ResumeDTO>(ResumeDTOSchema, SYSTEM_PROMPT, input, this.preferredLLM);
   }
 }
 

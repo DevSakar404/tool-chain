@@ -22,13 +22,33 @@ export interface IDriveCapability {
 }
 
 // ---------------------------------------------------------------------------
+// LLM provider selection — a node's preferred model is a declared property
+// (today in code; a "preferred LLM" column in the tool registry later).
+// ---------------------------------------------------------------------------
+export type LLMProviderName = "anthropic" | "gemini";
+
+export interface LLMTarget {
+  provider: LLMProviderName;
+  /** Optional model override; provider default is used when omitted. */
+  model?: string | undefined;
+}
+
+// ---------------------------------------------------------------------------
 // ILLMProvider — provider-agnostic; concrete impl uses Vercel AI SDK
 // ---------------------------------------------------------------------------
 export interface ILLMProvider {
+  /**
+   * Generate a schema-validated object.
+   *
+   * @param prefer Optional per-node provider preference. When set, this target
+   *   is attempted first; on failure the call still falls through to the
+   *   globally-configured primary → fallback chain (resilience preserved).
+   */
   generateObject<T>(
     schema: ZodType<T>,
     systemPrompt: string,
     userInput: unknown,
+    prefer?: LLMTarget,
   ): Promise<T>;
 }
 

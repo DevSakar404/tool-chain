@@ -1,5 +1,6 @@
 import type { ZodTypeAny } from "zod";
 import type { INode } from "../contracts/INode.js";
+import type { LLMTarget } from "../contracts/IRunContext.js";
 
 export interface NodeFieldDescriptor {
   name: string;
@@ -13,6 +14,8 @@ export interface NodeCatalogEntry {
   description?: string;
   inputFields: NodeFieldDescriptor[];
   outputFields: NodeFieldDescriptor[];
+  /** The node's preferred LLM, if it declares one (future registry column). */
+  preferredLLM?: LLMTarget;
 }
 
 function zodTypeLabel(schema: ZodTypeAny): string {
@@ -63,6 +66,9 @@ export function describeNode(node: INode): NodeCatalogEntry {
   };
   if (node.description !== undefined) {
     entry.description = node.description;
+  }
+  if (node.preferredLLM !== undefined) {
+    entry.preferredLLM = node.preferredLLM;
   }
   return entry;
 }

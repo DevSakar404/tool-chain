@@ -1,8 +1,8 @@
 "use client";
 
-import type { Step, NodeCatalogEntry } from "@tool-chain/core";
+import type { Step, NodeCatalogEntry, Ref } from "@tool-chain/core";
 import type { StepStatus, ValidationState } from "@/types/editor";
-import { CARD_WIDTH, CARD_HEIGHT } from "./layout";
+import { CARD_WIDTH, CARD_HEADER_HEIGHT, FIELD_ROW_HEIGHT, getCardHeight } from "./layout";
 
 interface Props {
   step: Step;
@@ -58,6 +58,72 @@ function statusRingStyle(status: StepStatus | undefined, selected: boolean): Rea
   return {};
 }
 
+function renderSourceChip(ref: Ref | undefined, isRequired: boolean) {
+  if (!ref) {
+    if (isRequired) {
+      return (
+        <span
+          className="text-[9px] px-1.5 py-0.5 rounded font-medium border border-dashed shrink-0"
+          style={{
+            borderColor: "hsl(var(--warning))",
+            color: "hsl(var(--warning))",
+            background: "transparent",
+          }}
+        >
+          needs input
+        </span>
+      );
+    }
+    return null;
+  }
+
+  if ("value" in ref) {
+    const valStr = String(ref.value);
+    const truncated = valStr.length > 8 ? valStr.slice(0, 6) + "…" : valStr;
+    return (
+      <span
+        className="text-[9px] px-1.5 py-0.5 rounded font-mono truncate shrink-0"
+        style={{
+          background: "hsl(var(--muted))",
+          color: "hsl(var(--muted-foreground))",
+        }}
+        title={valStr}
+      >
+        = &quot;{truncated}&quot;
+      </span>
+    );
+  }
+
+  if ("from" in ref) {
+    if (ref.from === "trigger") {
+      return (
+        <span
+          className="text-[9px] px-1.5 py-0.5 rounded font-mono truncate shrink-0"
+          style={{
+            background: "hsl(var(--kind-trigger) / 0.15)",
+            color: "hsl(var(--kind-trigger))",
+          }}
+        >
+          ◀ trigger.{ref.path}
+        </span>
+      );
+    }
+    return (
+      <span
+        className="text-[9px] px-1.5 py-0.5 rounded font-mono truncate shrink-0"
+        style={{
+          background: "hsl(var(--accent-flow) / 0.15)",
+          color: "hsl(var(--accent-flow))",
+        }}
+      >
+        ◀ {ref.from}.{ref.path}
+      </span>
+    );
+  }
+
+  return null;
+}
+
 export function NodeCard({
   step,
   catalogEntry,
@@ -78,11 +144,13 @@ export function NodeCard({
 
   const borderColor = hasError && !status ? "hsl(var(--destructive))" : "hsl(var(--border))";
 
-  const inputCount = catalogEntry?.inputFields.length ?? Object.keys(step.inputMapping).length;
-  const ariaLabel = `${step.nodeId}, ${kindLabel(kind)}, ${inputCount} inputs${status ? `, status ${status}` : ""}`;
+  const inputFields = catalogEntry?.inputFields ?? [];
+  const height = getCardHeight(inputFields.length);
+
+  const ariaLabel = `${step.nodeId}, ${kindLabel(kind)}, ${inputFields.length} inputs${status ? `, status ${status}` : ""}`;
 
   return (
-    <foreignObject x={x} y={y} width={CARD_WIDTH} height={CARD_HEIGHT}>
+    <foreignObject x={x} y={y} width={CARD_WIDTH} height={height}>
       <div
         role="button"
         tabIndex={0}
@@ -121,9 +189,19 @@ export function NodeCard({
         />
 
         {/* Card body */}
-        <div style={{ flex: 1, padding: "10px 10px 10px 8px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           {/* Header row */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
+          <div
+            style={{
+              height: CARD_HEADER_HEIGHT,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0 10px 0 8px",
+              borderBottom: "1px solid hsl(var(--border))",
+              gap: 4,
+            }}
+          >
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
@@ -174,17 +252,51 @@ export function NodeCard({
             )}
           </div>
 
-          {/* Description */}
-          <div
-            style={{
-              fontSize: 10,
-              color: "hsl(var(--muted-foreground))",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {catalogEntry?.description ?? step.nodeId}
+          {/* Input field rows */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {inputFields.map((field, idx) => (
+              <div
+                key={field.name}
+                style={{
+                  height: FIELD_ROW_HEIGHT,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 10px 0 8px",
+                  gap: 8,
+                  borderBottom: idx === inputFields.length - 1 ? "none" : "1px solid hsl(var(--border) / 0.4)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "ui-monospace, monospace",
+                    color: "hsl(var(--muted-foreground))",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {field.name}
+                </span>
+                {renderSourceChip(step.inputMapping[field.name], field.required)}
+              </div>
+            ))}
+            {inputFields.length === 0 && (
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 8px",
+                  fontSize: 10,
+                  color: "hsl(var(--muted-foreground))",
+                  fontStyle: "italic",
+                }}
+              >
+                {catalogEntry?.description ?? "No inputs required"}
+              </div>
+            )}
           </div>
         </div>
       </div>

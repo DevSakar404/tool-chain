@@ -98,7 +98,7 @@ export function ChainEditor({ state, dispatch }: Props) {
         />
         {/* Canvas + bottom panels + inspector overlay */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative overflow-hidden w-full h-full flex flex-col">
             <ChainCanvas
               chain={state.chain}
               catalog={state.catalog}

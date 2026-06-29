@@ -1,9 +1,10 @@
-import type { Chain, Ref } from "@tool-chain/core";
-import { computeLayout } from "./layout";
+import type { Chain, Ref, NodeCatalogEntry } from "@tool-chain/core";
+import { computeLayout, CARD_HEADER_HEIGHT, FIELD_ROW_HEIGHT } from "./layout";
 import type { ValidationState, StepStatus } from "@/types/editor";
 
 interface Props {
   chain: Chain;
+  catalog: NodeCatalogEntry[];
   validation: ValidationState;
   selectedStepId: string | null;
   runStatuses: Record<string, StepStatus>;
@@ -14,8 +15,8 @@ function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
 }
 
-export function WireLayer({ chain, validation, selectedStepId, runStatuses }: Props) {
-  const layouts = computeLayout(chain.steps.map((s) => s.stepId));
+export function WireLayer({ chain, catalog, validation, selectedStepId, runStatuses }: Props) {
+  const layouts = computeLayout(chain.steps, catalog);
   const layoutMap = new Map(layouts.map((l) => [l.id, l]));
 
   type Wire = {
@@ -33,6 +34,8 @@ export function WireLayer({ chain, validation, selectedStepId, runStatuses }: Pr
     if (!targetLayout) continue;
 
     const stepValidation = validation.steps.find((v) => v.stepId === step.stepId);
+    const catalogEntry = catalog.find((c) => c.id === step.nodeId);
+    const inputFields = catalogEntry?.inputFields ?? [];
 
     for (const [fieldName, ref] of Object.entries(step.inputMapping) as [string, Ref][]) {
       if ("value" in ref) continue; // literals have no wire
@@ -47,14 +50,22 @@ export function WireLayer({ chain, validation, selectedStepId, runStatuses }: Pr
 
       const sourceLayout = layoutMap.get(fromId);
 
+      // Find the index of the field in target's input fields to calculate exact Y offset
+      const fieldIdx = inputFields.findIndex((f) => f.name === fieldName);
+      const targetY =
+        targetLayout.y +
+        CARD_HEADER_HEIGHT +
+        (fieldIdx >= 0 ? fieldIdx : 0) * FIELD_ROW_HEIGHT +
+        FIELD_ROW_HEIGHT / 2;
+
       if (!sourceLayout) {
         if (isDangling) {
           wires.push({
             d: bezierPath(
               targetLayout.inputPort.x - 60,
-              targetLayout.inputPort.y,
+              targetY,
               targetLayout.inputPort.x,
-              targetLayout.inputPort.y,
+              targetY,
             ),
             invalid: true,
             targetStepId: step.stepId,
@@ -69,7 +80,7 @@ export function WireLayer({ chain, validation, selectedStepId, runStatuses }: Pr
           sourceLayout.outputPort.x,
           sourceLayout.outputPort.y,
           targetLayout.inputPort.x,
-          targetLayout.inputPort.y,
+          targetY,
         ),
         invalid: !!isDangling,
         targetStepId: step.stepId,

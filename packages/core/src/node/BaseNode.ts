@@ -1,6 +1,6 @@
 import { type ZodType, ZodError } from "zod";
 import type { INode, NodeKind } from "../contracts/INode.js";
-import type { IRunContext } from "../contracts/IRunContext.js";
+import type { IRunContext, LLMTarget } from "../contracts/IRunContext.js";
 import type { StepResult, SafeError } from "../contracts/dtos.js";
 
 function toSafeError(e: unknown): SafeError {
@@ -18,6 +18,12 @@ export abstract class BaseNode<I, O> implements INode<I, O> {
   abstract readonly kind: NodeKind;
   abstract readonly inputSchema: ZodType<I>;
   abstract readonly outputSchema: ZodType<O>;
+
+  /**
+   * Preferred LLM for this node; undefined means defer to the global default
+   * provider. Subclasses override with a concrete target to pin a provider.
+   */
+  readonly preferredLLM?: LLMTarget | undefined;
 
   /**
    * Subclasses implement this; `input` is already Zod-validated.

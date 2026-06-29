@@ -2,7 +2,8 @@ import { NodeRegistry } from "../registry/NodeRegistry.js";
 import { ChainEngine } from "../engine/ChainEngine.js";
 import { registerAll } from "../nodes/index.js";
 import { GoogleDriveCapability } from "../infra/drive/GoogleDriveCapability.js";
-import { VercelAILLMProvider } from "../infra/llm/VercelAILLMProvider.js";
+import { VercelAILLMProvider, type ResolvedTarget } from "../infra/llm/VercelAILLMProvider.js";
+import type { LLMProviderName } from "../contracts/IRunContext.js";
 import { SupabaseChainRepository } from "../infra/supabase/SupabaseChainRepository.js";
 import { SupabaseRunRepository } from "../infra/supabase/SupabaseRunRepository.js";
 import { SupabaseStorage } from "../infra/supabase/SupabaseStorage.js";
@@ -28,7 +29,18 @@ export interface BuildEngineOptions {
   /** Google OAuth2 access token (ya29.xxx) — obtain from OAuth Playground or gcloud auth */
   googleAccessToken: string;
   anthropicApiKey: string;
+  /** Gemini API key — required only when gemini is the active or fallback provider. */
+  geminiApiKey?: string | undefined;
+  /** Primary LLM provider. Defaults to "anthropic" to preserve existing behavior. */
+  llmProvider?: LLMProviderName | undefined;
+  /**
+   * Optional fallback provider. When set, a failed primary LLM call is retried
+   * once against this provider — the resilience path for bad keys / outages.
+   */
+  llmFallbackProvider?: LLMProviderName | undefined;
   llmModel?: string | undefined;
+  /** Optional model override for the fallback provider. */
+  llmFallbackModel?: string | undefined;
   storageBucket?: string | undefined;
 }
 
@@ -57,9 +69,49 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
     storage,
   });
 
-  const llm = new VercelAILLMProvider({
-    apiKey: opts.anthropicApiKey,
+  // Resolve a provider name to a credentialed LLM target. Throws early at the
+  // composition root if a selected provider has no key — clearer than a runtime
+  // "invalid x-api-key" deep inside a node.
+  const apiKeyFor = (provider: LLMProviderName): string => {
+    const key = provider === "gemini" ? (opts.geminiApiKey ?? "") : opts.anthropicApiKey;
+    if (!key) {
+      throw new Error(
+        `LLM provider "${provider}" selected but its API key is missing. ` +
+          `Set ${provider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"}.`,
+      );
+    }
+    return key;
+  };
+
+  const primaryProvider: LLMProviderName = opts.llmProvider ?? "anthropic";
+  const primaryTarget: ResolvedTarget = {
+    provider: primaryProvider,
+    apiKey: apiKeyFor(primaryProvider),
     ...(opts.llmModel !== undefined ? { model: opts.llmModel } : {}),
+  };
+
+  let fallbackTarget: ResolvedTarget | undefined;
+  if (opts.llmFallbackProvider && opts.llmFallbackProvider !== primaryProvider) {
+    fallbackTarget = {
+      provider: opts.llmFallbackProvider,
+      apiKey: apiKeyFor(opts.llmFallbackProvider),
+      ...(opts.llmFallbackModel !== undefined ? { model: opts.llmFallbackModel } : {}),
+    };
+  }
+
+  // Per-provider keys so a node's preferred LLM resolves even when that provider
+  // is neither primary nor fallback (e.g. resume.parse_fields prefers gemini).
+  // Only non-empty keys are included — a missing key means that provider simply
+  // isn't available as a preference, and the call falls through to the chain.
+  const apiKeys: Partial<Record<LLMProviderName, string>> = {};
+  if (opts.anthropicApiKey) apiKeys.anthropic = opts.anthropicApiKey;
+  if (opts.geminiApiKey) apiKeys.gemini = opts.geminiApiKey;
+
+  const llm = new VercelAILLMProvider({
+    primary: primaryTarget,
+    apiKeys,
+    logger: new ConsoleLogger("llm"),
+    ...(fallbackTarget !== undefined ? { fallback: fallbackTarget } : {}),
   });
 
   const registry = new NodeRegistry();

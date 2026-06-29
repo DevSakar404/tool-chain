@@ -47,7 +47,12 @@ describe("resume.parse_fields behaviour", () => {
       expect.objectContaining({ parse: expect.any(Function) }), // Zod schema
       expect.stringContaining("resume parser"),
       validInput,
+      undefined, // no node-declared preference → global default provider
     );
+  });
+
+  it("declares no preferred LLM, deferring to the global default", () => {
+    expect(resumeParseFieldsNode.preferredLLM).toBeUndefined();
   });
 
   it("returns OutputInvalid when LLM returns wrong shape", async () => {

@@ -6,7 +6,7 @@ import type { EditorAction } from "@/hooks/useChainEditor";
 import type { ValidationState, RunState } from "@/types/editor";
 import { NodeCard } from "./NodeCard";
 import { WireLayer } from "./WireLayer";
-import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_HEIGHT, CARD_WIDTH } from "./layout";
+import { computeLayout, TRIGGER_WIDTH, TRIGGER_HEIGHT, CARD_WIDTH, CARD_HEADER_HEIGHT, FIELD_ROW_HEIGHT } from "./layout";
 
 interface Viewport { x: number; y: number; scale: number }
 
@@ -60,11 +60,12 @@ export function ChainCanvas({
   }, [viewport]);
 
   const onMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (!dragging.current) return;
+    const drag = dragging.current;
+    if (!drag) return;
     setViewport((v) => ({
       ...v,
-      x: dragging.current!.vpX + (e.clientX - dragging.current!.startX),
-      y: dragging.current!.vpY + (e.clientY - dragging.current!.startY),
+      x: drag.vpX + (e.clientX - drag.startX),
+      y: drag.vpY + (e.clientY - drag.startY),
     }));
   }, [setViewport]);
 
@@ -128,7 +129,7 @@ export function ChainCanvas({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedStepId, chain.steps, dispatch, onSave, onRun, onZoomIn, onZoomOut, onZoomFit, onOpenInspector, onCloseInspector]);
 
-  const layouts = computeLayout(chain.steps.map((s) => s.stepId));
+  const layouts = computeLayout(chain.steps, catalog);
   const layoutMap = new Map(layouts.map((l) => [l.id, l]));
   const triggerLayout = layoutMap.get("trigger")!;
 
@@ -136,7 +137,8 @@ export function ChainCanvas({
   const dotOpacity = Math.min(1, Math.max(0, (viewport.scale - 0.4) / 0.6));
 
   return (
-    <svg
+    <div className="relative w-full h-full overflow-hidden flex-1 flex flex-col">
+      <svg
       ref={svgRef}
       aria-label="Chain editor canvas"
       role="application"
@@ -228,6 +230,7 @@ export function ChainCanvas({
         {/* Wires — rendered below cards */}
         <WireLayer
           chain={chain}
+          catalog={catalog}
           validation={validation}
           selectedStepId={selectedStepId}
           runStatuses={run.stepStatuses}
@@ -238,25 +241,55 @@ export function ChainCanvas({
           const layout = layoutMap.get(step.stepId);
           if (!layout) return null;
           const isSelected = selectedStepId === step.stepId;
+          const catalogEntry = catalog.find((c) => c.id === step.nodeId);
+          const inputFields = catalogEntry?.inputFields ?? [];
+          const outputPortY = layout.y + layout.height / 2;
+
           return (
             <g key={step.stepId}>
-              {/* Input port */}
+              {/* Input ports: one for each input field row */}
+              {inputFields.map((field, fieldIdx) => {
+                const portY = layout.y + CARD_HEADER_HEIGHT + fieldIdx * FIELD_ROW_HEIGHT + FIELD_ROW_HEIGHT / 2;
+                return (
+                  <circle
+                    key={`${step.stepId}-input-port-${field.name}`}
+                    cx={layout.x}
+                    cy={portY}
+                    r={4.5}
+                    fill={isSelected ? "hsl(var(--accent-flow))" : "hsl(var(--muted-foreground))"}
+                    stroke="hsl(var(--border))"
+                    strokeWidth={1}
+                    className="transition-all cursor-pointer hover:scale-125"
+                    onClick={() =>
+                      dispatch({
+                        type: "SET_SELECTION",
+                        stepId: selectedStepId === step.stepId ? null : step.stepId,
+                      })
+                    }
+                  />
+                );
+              })}
+
+              {/* Output port: single center-right */}
               <circle
-                cx={layout.inputPort.x}
-                cy={layout.inputPort.y}
-                r={5}
+                cx={layout.x + CARD_WIDTH}
+                cy={outputPortY}
+                r={4.5}
                 fill={isSelected ? "hsl(var(--accent-flow))" : "hsl(var(--muted-foreground))"}
+                stroke="hsl(var(--border))"
+                strokeWidth={1}
+                className="transition-all cursor-pointer hover:scale-125"
+                onClick={() =>
+                  dispatch({
+                    type: "SET_SELECTION",
+                    stepId: selectedStepId === step.stepId ? null : step.stepId,
+                  })
+                }
               />
-              {/* Output port */}
-              <circle
-                cx={layout.outputPort.x}
-                cy={layout.outputPort.y}
-                r={5}
-                fill={isSelected ? "hsl(var(--accent-flow))" : "hsl(var(--muted-foreground))"}
-              />
+
               <NodeCard
                 step={step}
-                catalogEntry={catalog.find((c) => c.id === step.nodeId)}
+                catalogEntry={catalogEntry}
                 x={layout.x}
                 y={layout.y}
                 selected={isSelected}
@@ -270,12 +303,13 @@ export function ChainCanvas({
                 }
                 onDelete={() => dispatch({ type: "REMOVE_STEP", stepId: step.stepId })}
               />
+
               {isSelected && (() => {
                 const idx = chain.steps.findIndex((s) => s.stepId === step.stepId);
                 return (
                   <foreignObject
                     x={layout.x}
-                    y={layout.y + CARD_HEIGHT + 4}
+                    y={layout.y + layout.height + 4}
                     width={CARD_WIDTH}
                     height={28}
                   >
@@ -307,9 +341,39 @@ export function ChainCanvas({
             </g>
           );
         })}
-
-        {/* Zoom controls — bottom-right, fixed in canvas space */}
       </g>
     </svg>
-  );
+
+    {/* Zoom controls — bottom-right, overlaying the canvas */}
+    <div
+      className="absolute bottom-4 right-4 flex items-center gap-1 bg-background/80 backdrop-blur border rounded-md p-1 shadow-sm"
+      style={{ zIndex: 10 }}
+    >
+      <button
+        onClick={onZoomOut}
+        className="w-7 h-7 flex items-center justify-center text-sm font-medium rounded hover:bg-muted transition-colors border border-transparent"
+        aria-label="Zoom out"
+        title="Zoom out (−)"
+      >
+        −
+      </button>
+      <button
+        onClick={onZoomFit}
+        className="px-2 h-7 flex items-center justify-center text-xs font-medium rounded hover:bg-muted transition-colors border border-transparent"
+        aria-label="Fit to screen"
+        title="Fit to screen (0)"
+      >
+        fit
+      </button>
+      <button
+        onClick={onZoomIn}
+        className="w-7 h-7 flex items-center justify-center text-sm font-medium rounded hover:bg-muted transition-colors border border-transparent"
+        aria-label="Zoom in"
+        title="Zoom in (+)"
+      >
+        +
+      </button>
+    </div>
+  </div>
+);
 }
