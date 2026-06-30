@@ -7,7 +7,10 @@ export interface IChainRepository {
 
 export interface IRunRepository {
   createRun(run: RunRecord): Promise<void>;
-  updateRun(id: string, patch: Partial<Pick<RunRecord, "status" | "finishedAt">>): Promise<void>;
+  updateRun(
+    id: string,
+    patch: Partial<Pick<RunRecord, "status" | "finishedAt" | "totalTokens">>,
+  ): Promise<void>;
   createStepRun(stepRun: StepRunRecord): Promise<void>;
   updateStepRun(
     id: string,

@@ -5,6 +5,7 @@ import type {
   ILogger,
   LLMProviderName,
   LLMTarget,
+  TokenUsage,
 } from "../../contracts/IRunContext.js";
 import { createLLMModel } from "./createLLMModel.js";
 
@@ -70,6 +71,7 @@ export class VercelAILLMProvider implements ILLMProvider {
     systemPrompt: string,
     userInput: unknown,
     prefer?: LLMTarget,
+    onUsage?: (usage: TokenUsage) => void,
   ): Promise<T> {
     const prompt = JSON.stringify(userInput);
 
@@ -102,12 +104,21 @@ export class VercelAILLMProvider implements ILLMProvider {
     for (let i = 0; i < attempts.length; i++) {
       const attempt = attempts[i]!;
       try {
-        const { object } = await aiGenerateObject({
+        const { object, usage } = await aiGenerateObject({
           model: attempt.model,
           schema,
           system: systemPrompt,
           prompt,
         });
+        // Report usage only for the single successful attempt — failed
+        // fallbacks above already threw, so usage is counted exactly once.
+        if (onUsage && usage) {
+          onUsage({
+            promptTokens: usage.promptTokens,
+            completionTokens: usage.completionTokens,
+            totalTokens: usage.totalTokens,
+          });
+        }
         return object;
       } catch (err) {
         lastErr = err;

@@ -6,9 +6,10 @@ import { ChainEngine } from "../../engine/ChainEngine.js";
 import { registerAll } from "../../nodes/index.js";
 import { ResumeDTOSchema, type ResumeDTO } from "../../nodes/skills/resume.parse_fields.js";
 import type { IChainRepository, IRunRepository } from "../../contracts/IRepositories.js";
-import type { IRunContext } from "../../contracts/IRunContext.js";
+import type { IRunContext, TokenUsage } from "../../contracts/IRunContext.js";
 import type { BlobHandle, Chain } from "../../contracts/dtos.js";
 import { ChainSchema } from "../../contracts/dtos.js";
+import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
 
 // ── Load fixtures ─────────────────────────────────────────────────────────────
 const fixturesDir = resolve(process.cwd(), "../../fixtures");
@@ -28,6 +29,9 @@ const fakeBlob: BlobHandle = {
   size: resumeText.length,
   sha256: "fixture-sha256",
 };
+
+// Usage the cassette "reports" so the e2e proves token totals flow end-to-end.
+const CASSETTE_USAGE: TokenUsage = { promptTokens: 800, completionTokens: 120, totalTokens: 920 };
 
 // ── Fixture-backed mocks ──────────────────────────────────────────────────────
 const stepRuns: unknown[] = [];
@@ -53,13 +57,26 @@ function makeFakeCtx(runId: string): IRunContext {
       download: vi.fn().mockResolvedValue(fakeBlob),
     },
     llm: {
-      generateObject: vi.fn().mockResolvedValue(cassette),
+      // Mirror the real provider: return the object and report usage via onUsage.
+      generateObject: vi.fn(
+        async (
+          _schema: unknown,
+          _system: unknown,
+          _input: unknown,
+          _prefer: unknown,
+          onUsage?: (u: TokenUsage) => void,
+        ): Promise<unknown> => {
+          onUsage?.(CASSETTE_USAGE);
+          return cassette;
+        },
+      ) as IRunContext["llm"]["generateObject"],
     },
     storage: {
       upload: vi.fn().mockResolvedValue(fakeBlob.storageRef),
       download: vi.fn().mockResolvedValue(Buffer.from(resumeText, "utf-8")),
       delete: vi.fn(),
     },
+    usage: new UsageAccumulator(),
   };
 }
 
@@ -101,6 +118,15 @@ describe("e2e: resume-chain", () => {
       expect(parsed.data.experience.length).toBeGreaterThan(0);
       expect(parsed.data.keyProjects.length).toBeGreaterThan(0);
     }
+  });
+
+  it("reports non-zero total token usage from the skill step", async () => {
+    const engine = buildTestEngine();
+    const result = await engine.run(chainFixture.id, { fileId: "fixture-file-id" });
+
+    expect(result.ok).toBe(true);
+    // The chain has one skill step (resume.parse_fields) reporting CASSETTE_USAGE.
+    expect(result.totalTokens).toBe(CASSETTE_USAGE.totalTokens);
   });
 
   it("persists a StepRun for each of the 3 steps", async () => {

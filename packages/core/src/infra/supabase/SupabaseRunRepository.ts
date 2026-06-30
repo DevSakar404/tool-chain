@@ -19,11 +19,12 @@ export class SupabaseRunRepository implements IRunRepository {
 
   async updateRun(
     id: string,
-    patch: Partial<Pick<RunRecord, "status" | "finishedAt">>,
+    patch: Partial<Pick<RunRecord, "status" | "finishedAt" | "totalTokens">>,
   ): Promise<void> {
     const update: Record<string, unknown> = {};
     if (patch.status !== undefined) update["status"] = patch.status;
     if (patch.finishedAt !== undefined) update["finished_at"] = patch.finishedAt.toISOString();
+    if (patch.totalTokens !== undefined) update["total_tokens"] = patch.totalTokens;
 
     const result = await this.db.from("runs").update(update).eq("id", id);
     if (result.error) throw new ChainError(`updateRun failed: ${result.error.message}`, "DB_ERROR");

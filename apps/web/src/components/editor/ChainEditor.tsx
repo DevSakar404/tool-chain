@@ -30,7 +30,11 @@ export function ChainEditor({ state, dispatch }: Props) {
       dispatch({ type: "SET_RUN_STATUS", stepId, status: status as "pending" | "running" | "ok" | "error" }),
     [dispatch],
   );
-  const onDone = useCallback((result: unknown) => dispatch({ type: "SET_RUN_RESULT", result }), [dispatch]);
+  const onDone = useCallback(
+    (result: unknown, totalTokens?: number) =>
+      dispatch({ type: "SET_RUN_RESULT", result, ...(totalTokens !== undefined ? { totalTokens } : {}) }),
+    [dispatch],
+  );
   const onError = useCallback((message: string) => dispatch({ type: "SET_RUN_ERROR", message }), [dispatch]);
 
   const { run, running } = useChainRun({ onStep, onDone, onError });
@@ -133,6 +137,11 @@ export function ChainEditor({ state, dispatch }: Props) {
           )}
           {state.run.result != null && (
             <div className="border-t bg-background overflow-y-auto max-h-64 p-4 shrink-0">
+              {state.run.totalTokens != null && state.run.totalTokens > 0 && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  ≈ {state.run.totalTokens.toLocaleString()} tokens
+                </p>
+              )}
               <ResultView resume={state.run.result as ResumeDTO | null} />
             </div>
           )}

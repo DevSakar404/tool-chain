@@ -14,6 +14,7 @@ export { NodeRegistry } from "./registry/NodeRegistry.js";
 export { InputResolver } from "./engine/InputResolver.js";
 export { ChainEngine } from "./engine/ChainEngine.js";
 export type { RunResult, StepProgressEvent } from "./engine/ChainEngine.js";
+export { UsageAccumulator } from "./engine/UsageAccumulator.js";
 
 // Nodes
 export { registerAll } from "./nodes/index.js";

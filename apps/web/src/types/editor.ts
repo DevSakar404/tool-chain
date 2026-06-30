@@ -23,6 +23,8 @@ export interface RunState {
   stepStatuses: Record<string, StepStatus>;
   result: unknown;
   error: string | null;
+  /** Total LLM tokens for the last run; null when unknown / not yet run. */
+  totalTokens: number | null;
 }
 
 export interface EditorState {

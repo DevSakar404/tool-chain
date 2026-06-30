@@ -44,7 +44,13 @@ export class ResumeParseFieldsNode extends BaseNode<Input, ResumeDTO> {
 
   protected override async run(input: Input, ctx: IRunContext): Promise<ResumeDTO> {
     ctx.logger.info("Parsing resume fields", { textLength: input.text.length });
-    return ctx.llm.generateObject<ResumeDTO>(ResumeDTOSchema, SYSTEM_PROMPT, input, this.preferredLLM);
+    return ctx.llm.generateObject<ResumeDTO>(
+      ResumeDTOSchema,
+      SYSTEM_PROMPT,
+      input,
+      this.preferredLLM,
+      (usage) => ctx.usage.add(usage),
+    );
   }
 }
 

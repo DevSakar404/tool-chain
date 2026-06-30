@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { driveDownloadFileNode } from "../../nodes/tools/drive.download_file.js";
 import type { IRunContext } from "../../contracts/IRunContext.js";
 import type { BlobHandle } from "../../contracts/dtos.js";
+import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
 import { iNodeConformanceSuite } from "../contract/INode.conformance.js";
 
 const fakeBlobHandle: BlobHandle = {
@@ -18,6 +19,7 @@ function makeCtx(blobHandle: BlobHandle = fakeBlobHandle): IRunContext {
     drive: { download: vi.fn().mockResolvedValue(blobHandle) },
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
+    usage: new UsageAccumulator(),
   };
 }
 

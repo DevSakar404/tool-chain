@@ -142,4 +142,50 @@ describe("VercelAILLMProvider", () => {
     // preference and primary collapse to one attempt
     expect(generateObjectMock).toHaveBeenCalledTimes(1);
   });
+
+  it("reports usage via onUsage on a successful call", async () => {
+    generateObjectMock.mockResolvedValueOnce({
+      object: { ok: true },
+      usage: { promptTokens: 12, completionTokens: 8, totalTokens: 20 },
+    });
+    const onUsage = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "k" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onUsage);
+
+    expect(onUsage).toHaveBeenCalledOnce();
+    expect(onUsage).toHaveBeenCalledWith({ promptTokens: 12, completionTokens: 8, totalTokens: 20 });
+  });
+
+  it("reports usage exactly once — only for the attempt that succeeds", async () => {
+    // Primary throws (no usage), fallback succeeds and reports usage.
+    generateObjectMock
+      .mockRejectedValueOnce(new Error("primary down"))
+      .mockResolvedValueOnce({
+        object: { ok: true },
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+      });
+    const onUsage = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "bad" },
+      fallback: { provider: "gemini", apiKey: "good" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onUsage);
+
+    expect(generateObjectMock).toHaveBeenCalledTimes(2);
+    expect(onUsage).toHaveBeenCalledOnce();
+    expect(onUsage).toHaveBeenCalledWith({ promptTokens: 5, completionTokens: 5, totalTokens: 10 });
+  });
+
+  it("does not throw when the SDK omits usage and no onUsage is given", async () => {
+    generateObjectMock.mockResolvedValueOnce({ object: { ok: true } });
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "k" },
+    });
+
+    await expect(llm.generateObject(schema, SYSTEM, INPUT)).resolves.toEqual({ ok: true });
+  });
 });

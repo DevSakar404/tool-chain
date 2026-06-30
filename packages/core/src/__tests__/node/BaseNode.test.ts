@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ToolNode } from "../../node/ToolNode.js";
 import { SkillNode } from "../../node/SkillNode.js";
 import type { IRunContext } from "../../contracts/IRunContext.js";
+import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
 
 const noopCtx: IRunContext = {
   runId: "test-run",
@@ -10,6 +11,7 @@ const noopCtx: IRunContext = {
   drive: { download: vi.fn() },
   llm: { generateObject: vi.fn() },
   storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
+  usage: new UsageAccumulator(),
 };
 
 const inputSchema = z.object({ value: z.number() });

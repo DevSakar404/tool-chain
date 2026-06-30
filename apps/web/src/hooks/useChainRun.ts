@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 const API_SECRET = process.env["NEXT_PUBLIC_RUN_API_SECRET"] ?? "";
 
 interface StepEvent { stepId: string; status: string }
-interface DoneEvent { ok: boolean; output?: unknown; error?: { message: string } }
+interface DoneEvent { ok: boolean; output?: unknown; error?: { message: string }; totalTokens?: number }
 interface ErrorEvent { message: string }
 type RunEvent =
   | { event: "step"; data: StepEvent }
@@ -14,7 +14,7 @@ type RunEvent =
 
 interface UseChainRunOptions {
   onStep: (stepId: string, status: string) => void;
-  onDone: (result: unknown) => void;
+  onDone: (result: unknown, totalTokens?: number) => void;
   onError: (message: string) => void;
 }
 
@@ -64,7 +64,7 @@ export function useChainRun({ onStep, onDone, onError }: UseChainRunOptions) {
               onStep(evt.data.stepId, evt.data.status);
             } else if (evt.event === "done") {
               if (evt.data.ok && evt.data.output !== undefined) {
-                onDone(evt.data.output);
+                onDone(evt.data.output, evt.data.totalTokens);
               } else {
                 onError(evt.data.error?.message ?? "Run failed");
               }

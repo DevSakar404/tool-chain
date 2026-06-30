@@ -24,6 +24,8 @@ export interface RunResult {
   output?: unknown;
   error?: SafeError;
   stepRuns: StepRunRecord[];
+  /** Total LLM tokens consumed across the run (0 if no skill steps ran). */
+  totalTokens: number;
 }
 
 export class ChainEngine {
@@ -74,9 +76,10 @@ export class ChainEngine {
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
         onStep?.({ event: "step:done", stepRun });
-        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date() });
+        const totalTokens = ctx.usage.total();
+        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date(), totalTokens });
         ctx.logger.error("Input resolution failed", { stepId: step.stepId, error });
-        return { runId, ok: false, error, stepRuns };
+        return { runId, ok: false, error, stepRuns, totalTokens };
       }
 
       // Get node
@@ -88,8 +91,9 @@ export class ChainEngine {
         const stepRun = this.makeStepRun(stepRunId, runId, step.stepId, step.nodeId, "failed", resolvedInput, undefined, error, startedAt);
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
-        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date() });
-        return { runId, ok: false, error, stepRuns };
+        const totalTokens = ctx.usage.total();
+        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date(), totalTokens });
+        return { runId, ok: false, error, stepRuns, totalTokens };
       }
 
       // Emit running event before execution
@@ -113,15 +117,17 @@ export class ChainEngine {
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
         onStep?.({ event: "step:done", stepRun });
-        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date() });
+        const totalTokens = ctx.usage.total();
+        await this.opts.runRepo.updateRun(runId, { status: "failed", finishedAt: new Date(), totalTokens });
         ctx.logger.error("Step failed", { stepId: step.stepId, kind: result.kind, error: result.error });
-        return { runId, ok: false, error: result.error, stepRuns };
+        return { runId, ok: false, error: result.error, stepRuns, totalTokens };
       }
     }
 
-    await this.opts.runRepo.updateRun(runId, { status: "completed", finishedAt: new Date() });
-    ctx.logger.info("Chain run completed", { runId });
-    return { runId, ok: true, output: lastOutput, stepRuns };
+    const totalTokens = ctx.usage.total();
+    await this.opts.runRepo.updateRun(runId, { status: "completed", finishedAt: new Date(), totalTokens });
+    ctx.logger.info("Chain run completed", { runId, totalTokens });
+    return { runId, ok: true, output: lastOutput, stepRuns, totalTokens };
   }
 
   private makeStepRun(

@@ -1,5 +1,6 @@
 import { NodeRegistry } from "../registry/NodeRegistry.js";
 import { ChainEngine } from "../engine/ChainEngine.js";
+import { UsageAccumulator } from "../engine/UsageAccumulator.js";
 import { registerAll } from "../nodes/index.js";
 import { GoogleDriveCapability } from "../infra/drive/GoogleDriveCapability.js";
 import { VercelAILLMProvider, type ResolvedTarget } from "../infra/llm/VercelAILLMProvider.js";
@@ -123,6 +124,7 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
     drive,
     llm,
     storage,
+    usage: new UsageAccumulator(),
   });
 
   const engine = new ChainEngine({ registry, chainRepo, runRepo, ctxFactory });

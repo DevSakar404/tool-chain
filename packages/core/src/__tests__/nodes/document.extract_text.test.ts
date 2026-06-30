@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { documentExtractTextNode } from "../../nodes/tools/document.extract_text.js";
 import type { IRunContext } from "../../contracts/IRunContext.js";
 import type { BlobHandle } from "../../contracts/dtos.js";
+import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
 import { iNodeConformanceSuite } from "../contract/INode.conformance.js";
 
 const LONG_TEXT = "a".repeat(200);
@@ -15,6 +16,7 @@ function makeBlob(mime: string, text: string): { blob: BlobHandle; ctx: IRunCont
     drive: { download: vi.fn() },
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn().mockResolvedValue(buf), delete: vi.fn() },
+    usage: new UsageAccumulator(),
   };
   return { blob, ctx };
 }

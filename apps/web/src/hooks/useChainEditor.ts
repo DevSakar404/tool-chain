@@ -22,7 +22,7 @@ export type EditorAction =
   | { type: "MARK_SAVED" }
   | { type: "RUN_START" }
   | { type: "SET_RUN_STATUS"; stepId: string; status: StepStatus }
-  | { type: "SET_RUN_RESULT"; result: unknown }
+  | { type: "SET_RUN_RESULT"; result: unknown; totalTokens?: number }
   | { type: "SET_RUN_ERROR"; message: string }
   | { type: "CLEAR_RUN" }
   | { type: "LOAD_ERROR"; message: string };
@@ -36,7 +36,7 @@ export const initialEditorState: EditorState = {
   dirty: false,
   validation: { steps: [], valid: true },
   trigger: {},
-  run: { active: false, stepStatuses: {}, result: null, error: null },
+  run: { active: false, stepStatuses: {}, result: null, error: null, totalTokens: null },
   loadError: null,
 };
 
@@ -179,7 +179,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "RUN_START":
       return {
         ...state,
-        run: { active: true, stepStatuses: {}, result: null, error: null },
+        run: { active: true, stepStatuses: {}, result: null, error: null, totalTokens: null },
       };
 
     case "SET_RUN_STATUS":
@@ -194,7 +194,13 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "SET_RUN_RESULT":
       return {
         ...state,
-        run: { ...state.run, active: false, result: action.result, error: null },
+        run: {
+          ...state.run,
+          active: false,
+          result: action.result,
+          error: null,
+          totalTokens: action.totalTokens ?? null,
+        },
       };
 
     case "SET_RUN_ERROR":
@@ -206,7 +212,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "CLEAR_RUN":
       return {
         ...state,
-        run: { active: false, stepStatuses: {}, result: null, error: null },
+        run: { active: false, stepStatuses: {}, result: null, error: null, totalTokens: null },
       };
 
     case "LOAD_ERROR":

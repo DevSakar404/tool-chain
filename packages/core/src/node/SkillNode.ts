@@ -17,6 +17,12 @@ export class SkillNode<I, O> extends BaseNode<I, O> {
   }
 
   protected override async run(input: I, ctx: IRunContext): Promise<O> {
-    return ctx.llm.generateObject<O>(this.outputSchema, this.systemPrompt, input, this.preferredLLM);
+    return ctx.llm.generateObject<O>(
+      this.outputSchema,
+      this.systemPrompt,
+      input,
+      this.preferredLLM,
+      (usage) => ctx.usage.add(usage),
+    );
   }
 }

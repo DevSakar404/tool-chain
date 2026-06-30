@@ -60,6 +60,8 @@ export interface RunRecord {
   trigger: Record<string, unknown>;
   createdAt: Date;
   finishedAt?: Date | undefined;
+  /** Total LLM tokens consumed across the run's skill steps. */
+  totalTokens?: number | undefined;
 }
 
 export interface StepRunRecord {

@@ -48,6 +48,7 @@ export async function POST(
               ok: result.ok,
               output: result.ok ? result.output : undefined,
               error: result.ok ? undefined : result.error,
+              totalTokens: result.totalTokens,
             },
           }),
         );

@@ -34,6 +34,26 @@ export interface LLMTarget {
 }
 
 // ---------------------------------------------------------------------------
+// Token usage — reported by LLM calls, accumulated per run
+// ---------------------------------------------------------------------------
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+/**
+ * Run-scoped accumulator for LLM token usage. One instance per run lives on the
+ * IRunContext; the LLM provider reports each successful call's usage via the
+ * `onUsage` callback, and the engine reads `total()` when the run ends.
+ */
+export interface IUsageSink {
+  add(usage: TokenUsage): void;
+  /** Sum of `totalTokens` across all `add()` calls; 0 if none. */
+  total(): number;
+}
+
+// ---------------------------------------------------------------------------
 // ILLMProvider — provider-agnostic; concrete impl uses Vercel AI SDK
 // ---------------------------------------------------------------------------
 export interface ILLMProvider {
@@ -43,12 +63,16 @@ export interface ILLMProvider {
    * @param prefer Optional per-node provider preference. When set, this target
    *   is attempted first; on failure the call still falls through to the
    *   globally-configured primary → fallback chain (resilience preserved).
+   * @param onUsage Optional callback invoked with token usage from the single
+   *   successful attempt (never from a failed attempt that falls through, so
+   *   usage is counted exactly once).
    */
   generateObject<T>(
     schema: ZodType<T>,
     systemPrompt: string,
     userInput: unknown,
     prefer?: LLMTarget,
+    onUsage?: (usage: TokenUsage) => void,
   ): Promise<T>;
 }
 
@@ -70,4 +94,6 @@ export interface IRunContext {
   readonly drive: IDriveCapability;
   readonly llm: ILLMProvider;
   readonly storage: IStorage;
+  /** Run-scoped LLM token-usage accumulator. */
+  readonly usage: IUsageSink;
 }
