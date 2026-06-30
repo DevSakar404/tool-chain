@@ -81,10 +81,26 @@ This keeps `INode` / `StepResult` untouched — usage is a *context* concern
    tokens).
 
 5. **`ChainEngine`** reads `ctx.usage.total()` after the step loop and:
-   - includes it on `RunResult` as `totalTokens: number`;
-   - persists it on the terminal `updateRun(...)` call — both the
-     `"completed"` path and the `"failed"` path, so partial usage is recorded
-     for runs that error partway through.
+   - includes it on `RunResult` as `totalTokens: number` (every return path —
+     success and all failure paths — carries it; pre-LLM failures simply
+     report 0);
+   - persists it on the terminal `updateRun(...)` calls.
+
+   **Note — the engine has three early-return failure exits, not one:**
+   - input-resolution failure (`ChainEngine.ts:77`) and node-not-found
+     (`ChainEngine.ts:91`) both happen **before** any LLM call runs, so the
+     accumulated total is 0. These exits already call
+     `updateRun({ status: "failed", finishedAt })`; passing `totalTokens: 0`
+     is harmless and keeps the calls uniform, but is not required for
+     correctness.
+   - the **step-failure** exit (`ChainEngine.ts:116`) can occur *after* one or
+     more skill steps succeeded, so this path **must** persist
+     `ctx.usage.total()` to record partial usage.
+   - the **completed** path (`ChainEngine.ts:122`) persists the full total.
+
+   Implementation: compute `const totalTokens = ctx.usage.total()` immediately
+   before each terminal `updateRun`, include it in the patch, and include it on
+   the corresponding `RunResult`.
 
 ### Section 2 — Persistence
 
@@ -108,13 +124,21 @@ This keeps `INode` / `StepResult` untouched — usage is a *context* concern
 
 10. **`useChainRun`**: `DoneEvent` gains `totalTokens?: number`; the `onDone`
     callback signature becomes `(result: unknown, totalTokens?: number)`.
+    `ChainEditor.tsx:33` is the **only** caller of `onDone`, so this ripple is
+    contained.
 
-11. **`ChainEditor`**: store `totalTokens` in run state (extend the
-    `SET_RUN_RESULT` reducer action / run-state shape). Render it near
-    `ResultView` as a small muted line, e.g. **"≈ 1,240 tokens"**
-    (locale-formatted with thousands separators).
-    **Hide the line entirely when the total is 0** so chains with no skill
-    steps don't show a meaningless "0 tokens".
+11. **Editor run state + reducer** (`types/editor.ts`, `hooks/useChainEditor.ts`):
+    - `RunState` (`types/editor.ts:21`) gains `totalTokens: number | null`
+      (defaults `null`, i.e. "unknown / not yet run").
+    - `SET_RUN_RESULT` action gains `totalTokens?: number`; its reducer case
+      (`useChainEditor.ts:194`) writes `totalTokens: action.totalTokens ?? null`.
+    - `RUN_START` / `CLEAR_RUN` reset `totalTokens` back to `null` alongside the
+      existing `result: null` resets.
+
+12. **`ChainEditor`**: render the total near `ResultView` as a small muted line,
+    e.g. **"≈ 1,240 tokens"** (locale-formatted with thousands separators).
+    **Hide the line entirely when the total is `null` or 0** so chains with no
+    skill steps don't show a meaningless "0 tokens".
 
 ## Data flow (after change)
 
