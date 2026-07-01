@@ -5,6 +5,7 @@ import { NodeRegistry } from "../../registry/NodeRegistry.js";
 import { ToolNode } from "../../node/ToolNode.js";
 import { SkillNode } from "../../node/SkillNode.js";
 import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../../engine/LLMCallTrace.js";
 import type { Chain } from "../../contracts/dtos.js";
 import type { IChainRepository, IRunRepository } from "../../contracts/IRepositories.js";
 import type { IRunContext, TokenUsage } from "../../contracts/IRunContext.js";
@@ -72,6 +73,7 @@ function makeFakeCtx(): IRunContext {
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
     usage: new UsageAccumulator(),
+    llmTrace: new LLMCallTrace(),
   };
 }
 
@@ -234,6 +236,7 @@ describe("ChainEngine token usage", () => {
       llm: { generateObject },
       storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
       usage,
+      llmTrace: new LLMCallTrace(),
     };
     const engine = new ChainEngine({
       registry: reg,
@@ -289,5 +292,168 @@ describe("ChainEngine token usage", () => {
 
     expect(result.ok).toBe(true);
     expect(result.totalTokens).toBe(0);
+  });
+});
+
+// ── per-step LLM provider selection ─────────────────────────────────────────────
+describe("ChainEngine per-step LLM provider", () => {
+  const providerSkill = new SkillNode(
+    "test.providerSkill",
+    z.object({ value: z.number() }),
+    z.object({ ok: z.boolean() }),
+    "system-provider",
+  );
+
+  const providerChain: Chain = {
+    id: "00000000-0000-0000-0000-000000000003",
+    name: "Provider override chain",
+    schemaVersion: 1,
+    steps: [
+      {
+        stepId: "s1",
+        nodeId: "test.providerSkill",
+        inputMapping: { value: { from: "trigger", path: "value" } },
+        llmProvider: "gemini",
+      },
+    ],
+  };
+
+  function fakeGenerateObject(output: unknown, usage: TokenUsage) {
+    return vi.fn(
+      async (
+        _schema: unknown,
+        _system: unknown,
+        _input: unknown,
+        _prefer: unknown,
+        onResult?: (r: { usage: TokenUsage }) => void,
+      ) => {
+        onResult?.({ usage });
+        return output;
+      },
+    );
+  }
+
+  it("forwards the step's llmProvider to node.execute", async () => {
+    const executeSpy = vi.spyOn(providerSkill, "execute");
+    const reg = new NodeRegistry();
+    reg.register(providerSkill);
+    const repos = makeFakeRepos();
+    vi.mocked(repos.chainRepo.findById).mockResolvedValue(providerChain);
+    const generateObject = fakeGenerateObject({ ok: true }, { promptTokens: 1, completionTokens: 1, totalTokens: 2 });
+    const ctx: IRunContext = {
+      runId: "test-run",
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      drive: { download: vi.fn() },
+      gmail: { fetchAttachment: vi.fn() },
+      llm: { generateObject: generateObject as IRunContext["llm"]["generateObject"] },
+      storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
+      usage: new UsageAccumulator(),
+      llmTrace: new LLMCallTrace(),
+    };
+    const engine = new ChainEngine({
+      registry: reg,
+      chainRepo: repos.chainRepo,
+      runRepo: repos.runRepo,
+      ctxFactory: () => ctx,
+    });
+
+    await engine.run(providerChain.id, { value: 1 });
+
+    expect(executeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { llmProvider: "gemini" },
+    );
+    executeSpy.mockRestore();
+  });
+
+  it("records llmTarget and llmFallbackUsed:false on the step-run for a first-attempt success", async () => {
+    const reg = new NodeRegistry();
+    reg.register(providerSkill);
+    const repos = makeFakeRepos();
+    vi.mocked(repos.chainRepo.findById).mockResolvedValue(providerChain);
+    const generateObject = vi.fn(
+      async (
+        _schema: unknown,
+        _system: unknown,
+        _input: unknown,
+        _prefer: unknown,
+        onResult?: (r: { usage: TokenUsage; target: string; fallbackUsed: boolean }) => void,
+      ) => {
+        onResult?.({
+          usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+          target: "gemini:default",
+          fallbackUsed: false,
+        });
+        return { ok: true };
+      },
+    ) as IRunContext["llm"]["generateObject"];
+    const ctx: IRunContext = {
+      runId: "test-run",
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      drive: { download: vi.fn() },
+      gmail: { fetchAttachment: vi.fn() },
+      llm: { generateObject },
+      storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
+      usage: new UsageAccumulator(),
+      llmTrace: new LLMCallTrace(),
+    };
+    const engine = new ChainEngine({
+      registry: reg,
+      chainRepo: repos.chainRepo,
+      runRepo: repos.runRepo,
+      ctxFactory: () => ctx,
+    });
+
+    await engine.run(providerChain.id, { value: 1 });
+
+    expect(repos.runRepo.createStepRun).toHaveBeenCalledWith(
+      expect.objectContaining({ llmTarget: "gemini:default", llmFallbackUsed: false }),
+    );
+  });
+
+  it("records llmFallbackUsed:true when the LLM call fell through to a fallback", async () => {
+    const reg = new NodeRegistry();
+    reg.register(providerSkill);
+    const repos = makeFakeRepos();
+    vi.mocked(repos.chainRepo.findById).mockResolvedValue(providerChain);
+    const generateObject = vi.fn(
+      async (
+        _schema: unknown,
+        _system: unknown,
+        _input: unknown,
+        _prefer: unknown,
+        onResult?: (r: { usage: TokenUsage; target: string; fallbackUsed: boolean }) => void,
+      ) => {
+        onResult?.({
+          usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+          target: "anthropic:default",
+          fallbackUsed: true,
+        });
+        return { ok: true };
+      },
+    ) as IRunContext["llm"]["generateObject"];
+    const ctx: IRunContext = {
+      runId: "test-run",
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      drive: { download: vi.fn() },
+      gmail: { fetchAttachment: vi.fn() },
+      llm: { generateObject },
+      storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
+      usage: new UsageAccumulator(),
+      llmTrace: new LLMCallTrace(),
+    };
+    const engine = new ChainEngine({
+      registry: reg,
+      chainRepo: repos.chainRepo,
+      runRepo: repos.runRepo,
+      ctxFactory: () => ctx,
+    });
+
+    await engine.run(providerChain.id, { value: 1 });
+
+    expect(repos.runRepo.createStepRun).toHaveBeenCalledWith(
+      expect.objectContaining({ llmTarget: "anthropic:default", llmFallbackUsed: true }),
+    );
   });
 });

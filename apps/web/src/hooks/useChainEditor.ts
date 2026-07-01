@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducer } from "react";
-import type { Chain, Ref, NodeCatalogEntry } from "@tool-chain/core";
+import type { Chain, Ref, NodeCatalogEntry, LLMProviderName } from "@tool-chain/core";
 import type {
   EditorState,
   ValidationState,
@@ -15,6 +15,7 @@ export type EditorAction =
   | { type: "LOAD"; chain: Chain; catalog: NodeCatalogEntry[] }
   | { type: "SET_SELECTION"; stepId: string | null }
   | { type: "SET_REF"; stepId: string; fieldName: string; ref: Ref }
+  | { type: "SET_STEP_PROVIDER"; stepId: string; provider: LLMProviderName | undefined }
   | { type: "SET_TRIGGER"; payload: Record<string, unknown> }
   | { type: "REORDER_STEP"; stepId: string; toIndex: number }
   | { type: "INSERT_STEP"; nodeId: string; atIndex: number }
@@ -110,6 +111,22 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
           ...step,
           inputMapping: { ...step.inputMapping, [action.fieldName]: action.ref },
         };
+      });
+      const chain = { ...state.chain, steps };
+      return {
+        ...state,
+        chain,
+        dirty: true,
+        validation: computeValidation(chain, state.catalog),
+      };
+    }
+
+    case "SET_STEP_PROVIDER": {
+      if (!state.chain) return state;
+      const steps = state.chain.steps.map((step) => {
+        if (step.stepId !== action.stepId) return step;
+        const { llmProvider: _drop, ...rest } = step;
+        return action.provider ? { ...rest, llmProvider: action.provider } : rest;
       });
       const chain = { ...state.chain, steps };
       return {

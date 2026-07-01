@@ -126,6 +126,7 @@ export class VercelAILLMProvider implements ILLMProvider {
             messageId: response?.id,
             requestId: headers?.["request-id"] ?? headers?.["x-request-id"],
             target: attempt.label,
+            fallbackUsed: i > 0,
           });
         }
         return object;

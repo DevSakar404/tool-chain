@@ -1,6 +1,7 @@
 import { NodeRegistry } from "../registry/NodeRegistry.js";
 import { ChainEngine } from "../engine/ChainEngine.js";
 import { UsageAccumulator } from "../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../engine/LLMCallTrace.js";
 import { registerAll } from "../nodes/index.js";
 import { GoogleDriveCapability } from "../infra/drive/GoogleDriveCapability.js";
 import { GmailCapability } from "../infra/gmail/GmailCapability.js";
@@ -39,6 +40,8 @@ export interface BuildEngineOptions {
   anthropicApiKey: string;
   /** Gemini API key — required only when gemini is the active or fallback provider. */
   geminiApiKey?: string | undefined;
+  /** OpenRouter API key — required only when openrouter is the active or fallback provider. */
+  openrouterApiKey?: string | undefined;
   /** Primary LLM provider. Defaults to "anthropic" to preserve existing behavior. */
   llmProvider?: LLMProviderName | undefined;
   /**
@@ -85,12 +88,21 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
   // Resolve a provider name to a credentialed LLM target. Throws early at the
   // composition root if a selected provider has no key — clearer than a runtime
   // "invalid x-api-key" deep inside a node.
+  const ENV_VAR_FOR: Record<LLMProviderName, string> = {
+    anthropic: "ANTHROPIC_API_KEY",
+    gemini: "GEMINI_API_KEY",
+    openrouter: "OPENROUTER_API_KEY",
+  };
   const apiKeyFor = (provider: LLMProviderName): string => {
-    const key = provider === "gemini" ? (opts.geminiApiKey ?? "") : opts.anthropicApiKey;
+    const key =
+      provider === "gemini"
+        ? (opts.geminiApiKey ?? "")
+        : provider === "openrouter"
+          ? (opts.openrouterApiKey ?? "")
+          : opts.anthropicApiKey;
     if (!key) {
       throw new Error(
-        `LLM provider "${provider}" selected but its API key is missing. ` +
-          `Set ${provider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"}.`,
+        `LLM provider "${provider}" selected but its API key is missing. Set ${ENV_VAR_FOR[provider]}.`,
       );
     }
     return key;
@@ -119,6 +131,7 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
   const apiKeys: Partial<Record<LLMProviderName, string>> = {};
   if (opts.anthropicApiKey) apiKeys.anthropic = opts.anthropicApiKey;
   if (opts.geminiApiKey) apiKeys.gemini = opts.geminiApiKey;
+  if (opts.openrouterApiKey) apiKeys.openrouter = opts.openrouterApiKey;
 
   const llm = new VercelAILLMProvider({
     primary: primaryTarget,
@@ -138,6 +151,7 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
     llm,
     storage,
     usage: new UsageAccumulator(),
+    llmTrace: new LLMCallTrace(),
   });
 
   const engine = new ChainEngine({ registry, chainRepo, runRepo, ctxFactory });

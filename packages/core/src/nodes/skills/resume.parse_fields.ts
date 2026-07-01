@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BaseNode } from "../../node/BaseNode.js";
-import type { IRunContext } from "../../contracts/IRunContext.js";
+import type { IRunContext, LLMTarget } from "../../contracts/IRunContext.js";
+import type { StepConfig } from "../../contracts/INode.js";
 
 // ── ResumeDTO schema ───────────────────────────────────────────────────────────
 const ExperienceSchema = z.object({
@@ -42,19 +43,24 @@ export class ResumeParseFieldsNode extends BaseNode<Input, ResumeDTO> {
   //   readonly preferredLLM: LLMTarget = { provider: "gemini" };
   // The future tool-registry "preferred LLM" column will source this field.
 
-  protected override async run(input: Input, ctx: IRunContext): Promise<ResumeDTO> {
+  protected override async run(input: Input, ctx: IRunContext, stepConfig?: StepConfig): Promise<ResumeDTO> {
     ctx.logger.info("Parsing resume fields", { textLength: input.text.length });
+    const prefer: LLMTarget | undefined = stepConfig?.llmProvider
+      ? { provider: stepConfig.llmProvider }
+      : this.preferredLLM;
     return ctx.llm.generateObject<ResumeDTO>(
       ResumeDTOSchema,
       SYSTEM_PROMPT,
       input,
-      this.preferredLLM,
+      prefer,
       (result) => {
         ctx.usage.add(result.usage);
+        if (result.target) ctx.llmTrace.set(result.target, result.fallbackUsed);
         // Trace identifiers for correlating this call to an Anthropic request.
         ctx.logger.info("LLM call", {
           nodeId: this.id,
           target: result.target,
+          fallbackUsed: result.fallbackUsed,
           messageId: result.messageId,
           requestId: result.requestId,
           totalTokens: result.usage.totalTokens,

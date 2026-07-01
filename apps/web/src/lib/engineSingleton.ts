@@ -20,6 +20,7 @@ export function getEngineBundle(): EngineBundle {
         process.env["GMAIL_ACCESS_TOKEN"] ?? process.env["GOOGLE_ACCESS_TOKEN"] ?? "",
       anthropicApiKey: process.env["ANTHROPIC_API_KEY"] ?? "",
       geminiApiKey: process.env["GEMINI_API_KEY"] ?? "",
+      openrouterApiKey: process.env["OPENROUTER_API_KEY"] ?? "",
       ...(process.env["LLM_PROVIDER"] !== undefined
         ? { llmProvider: process.env["LLM_PROVIDER"] as LLMProviderName }
         : {}),

@@ -14,6 +14,9 @@ vi.mock("@ai-sdk/anthropic", () => ({
 vi.mock("@ai-sdk/google", () => ({
   createGoogleGenerativeAI: () => (model: string) => ({ __provider: "gemini", model }),
 }));
+vi.mock("@ai-sdk/openai-compatible", () => ({
+  createOpenAICompatible: () => (model: string) => ({ __provider: "openrouter", model }),
+}));
 
 import { VercelAILLMProvider } from "../../infra/llm/VercelAILLMProvider.js";
 
@@ -93,6 +96,22 @@ describe("VercelAILLMProvider", () => {
     expect(result).toEqual({ ok: true });
     expect(generateObjectMock).toHaveBeenCalledTimes(1);
     expect(generateObjectMock.mock.calls[0]?.[0].model).toMatchObject({ __provider: "gemini" });
+  });
+
+  it("routes a node's openrouter preference through the OpenAI-compatible adapter", async () => {
+    generateObjectMock.mockResolvedValueOnce({ object: { ok: true } });
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "anthropic-key" },
+      apiKeys: { anthropic: "anthropic-key", openrouter: "openrouter-key" },
+    });
+
+    const result = await llm.generateObject(schema, SYSTEM, INPUT, { provider: "openrouter" });
+
+    expect(result).toEqual({ ok: true });
+    expect(generateObjectMock.mock.calls[0]?.[0].model).toMatchObject({
+      __provider: "openrouter",
+      model: "qwen/qwen-2.5-72b-instruct",
+    });
   });
 
   it("falls through from a failed preference to the global chain", async () => {
@@ -231,6 +250,33 @@ describe("VercelAILLMProvider", () => {
         target: "gemini:default",
       }),
     );
+  });
+
+  it("reports fallbackUsed:false when the first attempt succeeds", async () => {
+    generateObjectMock.mockResolvedValueOnce({ object: { ok: true } });
+    const onResult = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "k" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
+
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ fallbackUsed: false }));
+  });
+
+  it("reports fallbackUsed:true when a non-first attempt serves the call", async () => {
+    generateObjectMock
+      .mockRejectedValueOnce(new Error("primary down"))
+      .mockResolvedValueOnce({ object: { ok: true } });
+    const onResult = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "bad" },
+      fallback: { provider: "gemini", apiKey: "good" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
+
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ fallbackUsed: true }));
   });
 
   it("does not throw when the SDK omits usage/response and no onResult is given", async () => {

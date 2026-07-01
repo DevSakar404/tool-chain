@@ -4,6 +4,7 @@ import { ToolNode } from "../../node/ToolNode.js";
 import { SkillNode } from "../../node/SkillNode.js";
 import type { IRunContext } from "../../contracts/IRunContext.js";
 import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../../engine/LLMCallTrace.js";
 
 const noopCtx: IRunContext = {
   runId: "test-run",
@@ -13,6 +14,7 @@ const noopCtx: IRunContext = {
   llm: { generateObject: vi.fn() },
   storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
   usage: new UsageAccumulator(),
+  llmTrace: new LLMCallTrace(),
 };
 
 const inputSchema = z.object({ value: z.number() });
@@ -104,5 +106,63 @@ describe("SkillNode", () => {
       expect(result.kind).toBe("NodeError");
       expect(result.error.message).toBe("LLM timeout");
     }
+  });
+
+  describe("provider precedence: step override → node preferredLLM → undefined", () => {
+    it("step override wins over the node's preferredLLM", async () => {
+      const generateObject = vi.fn().mockResolvedValue({ doubled: 1 });
+      const ctx = { ...noopCtx, llm: { generateObject } };
+      const node = new SkillNode(
+        "test.skill",
+        inputSchema,
+        outputSchema,
+        "prompt",
+        undefined,
+        { provider: "anthropic" },
+      );
+      await node.execute({ value: 1 }, ctx, { llmProvider: "gemini" });
+      expect(generateObject).toHaveBeenCalledWith(
+        outputSchema,
+        "prompt",
+        { value: 1 },
+        { provider: "gemini" },
+        expect.any(Function),
+      );
+    });
+
+    it("falls back to the node's preferredLLM when no step override is given", async () => {
+      const generateObject = vi.fn().mockResolvedValue({ doubled: 1 });
+      const ctx = { ...noopCtx, llm: { generateObject } };
+      const node = new SkillNode(
+        "test.skill",
+        inputSchema,
+        outputSchema,
+        "prompt",
+        undefined,
+        { provider: "anthropic" },
+      );
+      await node.execute({ value: 1 }, ctx);
+      expect(generateObject).toHaveBeenCalledWith(
+        outputSchema,
+        "prompt",
+        { value: 1 },
+        { provider: "anthropic" },
+        expect.any(Function),
+      );
+    });
+
+    it("passes undefined when neither a step override nor a node preference is set", async () => {
+      const generateObject = vi.fn().mockResolvedValue({ doubled: 1 });
+      const ctx = { ...noopCtx, llm: { generateObject } };
+      const node = new SkillNode("test.skill", inputSchema, outputSchema, "prompt");
+      await node.execute({ value: 1 }, ctx);
+      expect(generateObject).toHaveBeenCalledWith(
+        outputSchema,
+        "prompt",
+        { value: 1 },
+        undefined,
+        expect.any(Function),
+      );
+    });
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { resumeParseFieldsNode, type ResumeDTO } from "../../nodes/skills/resume.parse_fields.js";
 import type { IRunContext } from "../../contracts/IRunContext.js";
 import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../../engine/LLMCallTrace.js";
 import { iNodeConformanceSuite } from "../contract/INode.conformance.js";
 
 const fakeResumeDTO: ResumeDTO = {
@@ -22,6 +23,7 @@ function makeCtx(dto: unknown = fakeResumeDTO): IRunContext {
     llm: { generateObject: vi.fn().mockResolvedValue(dto) },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
     usage: new UsageAccumulator(),
+    llmTrace: new LLMCallTrace(),
   };
 }
 

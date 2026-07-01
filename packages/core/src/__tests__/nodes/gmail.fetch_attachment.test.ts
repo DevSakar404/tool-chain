@@ -3,6 +3,7 @@ import { gmailFetchAttachmentNode } from "../../nodes/tools/gmail.fetch_attachme
 import type { IRunContext } from "../../contracts/IRunContext.js";
 import type { BlobHandle } from "../../contracts/dtos.js";
 import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../../engine/LLMCallTrace.js";
 import { iNodeConformanceSuite } from "../contract/INode.conformance.js";
 
 const fakeBlobHandle: BlobHandle = {
@@ -21,6 +22,7 @@ function makeCtx(blobHandle: BlobHandle = fakeBlobHandle): IRunContext {
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
     usage: new UsageAccumulator(),
+    llmTrace: new LLMCallTrace(),
   };
 }
 

@@ -1,8 +1,13 @@
 import type { ZodType } from "zod";
 import type { StepResult } from "./dtos.js";
-import type { IRunContext, LLMTarget } from "./IRunContext.js";
+import type { IRunContext, LLMProviderName, LLMTarget } from "./IRunContext.js";
 
 export type NodeKind = "tool" | "skill";
+
+/** Per-step config forwarded from the chain's step JSON into node.execute. */
+export interface StepConfig {
+  llmProvider?: LLMProviderName;
+}
 
 export interface NodeMeta {
   readonly id: string;
@@ -19,5 +24,5 @@ export interface NodeMeta {
 export interface INode<I = unknown, O = unknown> extends NodeMeta {
   readonly inputSchema: ZodType<I>;
   readonly outputSchema: ZodType<O>;
-  execute(input: unknown, ctx: IRunContext): Promise<StepResult<O>>;
+  execute(input: unknown, ctx: IRunContext, stepConfig?: StepConfig): Promise<StepResult<O>>;
 }

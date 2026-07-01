@@ -100,7 +100,7 @@ export function RunStatusCard({ status, stepLog, elapsedMs, errorMsg, totalToken
         <div className="flex items-center gap-3 text-sm font-mono tabular-nums text-muted-foreground">
           {totalTokens != null && totalTokens > 0 && (
             <span title="Total LLM tokens used by this run">
-              {/* ≈ {totalTokens.toLocaleString()} tokens */}
+              ≈ {totalTokens.toLocaleString()} tokens
             </span>
           )}
           <span>{formatElapsed(elapsedMs)}</span>

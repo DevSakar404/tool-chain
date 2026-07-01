@@ -100,11 +100,20 @@ export class ChainEngine {
       onStep?.({ event: "step:running", stepId: step.stepId, nodeId: step.nodeId });
 
       // Execute node
-      const result = await node.execute(resolvedInput, ctx);
+      const result = await node.execute(
+        resolvedInput,
+        ctx,
+        step.llmProvider !== undefined ? { llmProvider: step.llmProvider } : {},
+      );
       const finishedAt = new Date();
 
       if (result.ok) {
         const stepRun = this.makeStepRun(stepRunId, runId, step.stepId, step.nodeId, "ok", resolvedInput, result.output, undefined, startedAt, finishedAt);
+        const trace = ctx.llmTrace.takeLast();
+        if (trace) {
+          stepRun.llmTarget = trace.target;
+          stepRun.llmFallbackUsed = trace.fallbackUsed;
+        }
         stepRuns.push(stepRun);
         await this.opts.runRepo.createStepRun(stepRun);
         onStep?.({ event: "step:done", stepRun });

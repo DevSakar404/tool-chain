@@ -10,6 +10,7 @@ import type { IRunContext, TokenUsage } from "../../contracts/IRunContext.js";
 import type { BlobHandle, Chain } from "../../contracts/dtos.js";
 import { ChainSchema } from "../../contracts/dtos.js";
 import { UsageAccumulator } from "../../engine/UsageAccumulator.js";
+import { LLMCallTrace } from "../../engine/LLMCallTrace.js";
 
 // ── Load fixtures ─────────────────────────────────────────────────────────────
 const fixturesDir = resolve(process.cwd(), "../../fixtures");
@@ -81,6 +82,7 @@ function makeFakeCtx(runId: string): IRunContext {
       delete: vi.fn(),
     },
     usage: new UsageAccumulator(),
+    llmTrace: new LLMCallTrace(),
   };
 }
 

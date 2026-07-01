@@ -1,5 +1,5 @@
 import { type ZodType, ZodError } from "zod";
-import type { INode, NodeKind } from "../contracts/INode.js";
+import type { INode, NodeKind, StepConfig } from "../contracts/INode.js";
 import type { IRunContext, LLMTarget } from "../contracts/IRunContext.js";
 import type { StepResult, SafeError } from "../contracts/dtos.js";
 
@@ -28,9 +28,9 @@ export abstract class BaseNode<I, O> implements INode<I, O> {
   /**
    * Subclasses implement this; `input` is already Zod-validated.
    */
-  protected abstract run(input: I, ctx: IRunContext): Promise<O>;
+  protected abstract run(input: I, ctx: IRunContext, stepConfig?: StepConfig): Promise<O>;
 
-  async execute(rawInput: unknown, ctx: IRunContext): Promise<StepResult<O>> {
+  async execute(rawInput: unknown, ctx: IRunContext, stepConfig?: StepConfig): Promise<StepResult<O>> {
     // --- validate input ---
     const inputParsed = this.inputSchema.safeParse(rawInput);
     if (!inputParsed.success) {
@@ -45,7 +45,7 @@ export abstract class BaseNode<I, O> implements INode<I, O> {
     // --- run node ---
     let output: O;
     try {
-      output = await this.run(inputParsed.data, ctx);
+      output = await this.run(inputParsed.data, ctx, stepConfig);
     } catch (e) {
       ctx.logger.error("NodeError", { nodeId: this.id, error: toSafeError(e) });
       return {

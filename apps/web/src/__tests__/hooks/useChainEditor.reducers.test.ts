@@ -159,6 +159,54 @@ describe("editorReducer — SET_REF", () => {
   });
 });
 
+describe("editorReducer — SET_STEP_PROVIDER", () => {
+  it("sets step.llmProvider and marks dirty", () => {
+    const state = editorReducer(loadedState(), {
+      type: "SET_STEP_PROVIDER",
+      stepId: "s1",
+      provider: "gemini",
+    });
+    const s1 = state.chain?.steps.find((s) => s.stepId === "s1");
+    expect(s1?.llmProvider).toBe("gemini");
+    expect(state.dirty).toBe(true);
+  });
+
+  it("sets step.llmProvider to openrouter", () => {
+    const state = editorReducer(loadedState(), {
+      type: "SET_STEP_PROVIDER",
+      stepId: "s1",
+      provider: "openrouter",
+    });
+    const s1 = state.chain?.steps.find((s) => s.stepId === "s1");
+    expect(s1?.llmProvider).toBe("openrouter");
+  });
+
+  it("clears step.llmProvider when provider is undefined", () => {
+    const withProvider = editorReducer(loadedState(), {
+      type: "SET_STEP_PROVIDER",
+      stepId: "s1",
+      provider: "anthropic",
+    });
+    const state = editorReducer(withProvider, {
+      type: "SET_STEP_PROVIDER",
+      stepId: "s1",
+      provider: undefined,
+    });
+    const s1 = state.chain?.steps.find((s) => s.stepId === "s1");
+    expect(s1?.llmProvider).toBeUndefined();
+    expect("llmProvider" in (s1 ?? {})).toBe(false);
+  });
+
+  it("revalidates after setting the provider", () => {
+    const state = editorReducer(loadedState(), {
+      type: "SET_STEP_PROVIDER",
+      stepId: "s1",
+      provider: "gemini",
+    });
+    expect(state.validation).toBeDefined();
+  });
+});
+
 describe("editorReducer — SET_TRIGGER", () => {
   it("updates the trigger payload", () => {
     const state = editorReducer(loadedState(), {

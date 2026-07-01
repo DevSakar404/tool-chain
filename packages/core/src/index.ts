@@ -15,6 +15,7 @@ export { InputResolver } from "./engine/InputResolver.js";
 export { ChainEngine } from "./engine/ChainEngine.js";
 export type { RunResult, StepProgressEvent } from "./engine/ChainEngine.js";
 export { UsageAccumulator } from "./engine/UsageAccumulator.js";
+export { LLMCallTrace } from "./engine/LLMCallTrace.js";
 
 // Nodes
 export { registerAll } from "./nodes/index.js";

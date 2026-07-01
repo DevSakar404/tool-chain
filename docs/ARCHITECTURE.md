@@ -98,7 +98,9 @@ tool-chain/
 │       │   │   └── index.ts               # registerAll(registry)
 │       │   ├── infra/                     # concrete adapters (implement contracts)
 │       │   │   ├── supabase/{SupabaseChainRepository,SupabaseRunRepository,SupabaseStorage}.ts
-│       │   │   ├── drive/GoogleDriveCapability.ts   # service account; export-vs-download
+│       │   │   ├── google/GoogleApiCapability.ts    # shared base: auth fetch, retry, size guard, store->BlobHandle
+│       │   │   ├── drive/GoogleDriveCapability.ts   # export-vs-download
+│       │   │   ├── gmail/GmailCapability.ts         # part-walk, base64url attachment -> BlobHandle
 │       │   │   ├── llm/VercelAILLMProvider.ts       # generateObject
 │       │   │   └── logging/ConsoleLogger.ts
 │       │   ├── di/buildEngine.ts          # composition root (manual wiring) + redaction helper
@@ -192,7 +194,7 @@ result: s3.output
 6. **`drive.download_file`** — `{fileId}` → `BlobHandle` via `ctx.drive.download`; never returns bytes.
 7. **`document.extract_text`** — `BlobHandle` → `{text}`; mime-routed pdf-parse/mammoth + Drive export; min-content gate.
 8. **`resume.parse_fields`** — `ResumeDTO` schema; `{text}` → `ResumeDTO` via mocked `generateObject`; malformed → `OutputInvalid`.
-9. **Infra adapters** — GoogleDriveCapability (export-vs-download, `supportsAllDrives`, size guard, retry), VercelAILLMProvider, Supabase repos + Storage, ConsoleLogger.
+9. **Infra adapters** — GoogleApiCapability (shared base: auth fetch, retry, size guard, store→BlobHandle) subclassed by GoogleDriveCapability (export-vs-download, `supportsAllDrives`) and GmailCapability (part-walk, base64url attachment); VercelAILLMProvider, Supabase repos + Storage, ConsoleLogger.
 10. **Supabase migrations** — `chains`, `runs`, `step_runs` (jsonb, `schema_version`), Storage bucket; no RLS (deferred).
 11. **`buildEngine` composition root** — manual wiring + redaction helper.
 12. **Next.js run API + auth gate** — server-only, shared-secret gate, streams structured events.

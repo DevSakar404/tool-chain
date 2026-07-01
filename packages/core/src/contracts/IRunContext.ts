@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { BlobHandle } from "./dtos.js";
+import type { BlobHandle, LLMProviderNameSchema } from "./dtos.js";
 
 // ---------------------------------------------------------------------------
 // ILogger
@@ -37,7 +37,7 @@ export interface IGmailCapability {
 // LLM provider selection — a node's preferred model is a declared property
 // (today in code; a "preferred LLM" column in the tool registry later).
 // ---------------------------------------------------------------------------
-export type LLMProviderName = "anthropic" | "gemini";
+export type LLMProviderName = import("zod").infer<typeof LLMProviderNameSchema>;
 
 export interface LLMTarget {
   provider: LLMProviderName;
@@ -69,6 +69,8 @@ export interface LLMCallResult {
   requestId?: string | undefined;
   /** Resolved provider:model label that actually served the call. */
   target?: string | undefined;
+  /** True when a non-first attempt in the prefer→primary→fallback chain served the call. */
+  fallbackUsed: boolean;
 }
 
 /**
@@ -80,6 +82,17 @@ export interface IUsageSink {
   add(usage: TokenUsage): void;
   /** Sum of `totalTokens` across all `add()` calls; 0 if none. */
   total(): number;
+}
+
+/**
+ * Per-step LLM call trace, mirrored onto the step-run for UI/log visibility.
+ * A skill node's `onResult` callback writes it; the engine reads and clears it
+ * immediately after `node.execute` returns, so it never leaks into the next step.
+ */
+export interface ILLMCallTraceSink {
+  set(target: string, fallbackUsed: boolean): void;
+  /** Reads and clears the last-recorded trace; undefined if the step made no LLM call. */
+  takeLast(): { target: string; fallbackUsed: boolean } | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,4 +141,6 @@ export interface IRunContext {
   readonly storage: IStorage;
   /** Run-scoped LLM token-usage accumulator. */
   readonly usage: IUsageSink;
+  /** Last LLM call's target + fallback trace, for the current step. */
+  readonly llmTrace: ILLMCallTraceSink;
 }

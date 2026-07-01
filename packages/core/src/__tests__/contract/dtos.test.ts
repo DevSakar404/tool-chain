@@ -44,6 +44,46 @@ describe("StepSchema", () => {
       StepSchema.parse({ stepId: "s1", inputMapping: {} }),
     ).toThrow();
   });
+
+  it("parses a step without llmProvider (back-compat)", () => {
+    const step = StepSchema.parse({
+      stepId: "s1",
+      nodeId: "drive.download_file",
+      inputMapping: {},
+    });
+    expect(step.llmProvider).toBeUndefined();
+  });
+
+  it("accepts a valid llmProvider", () => {
+    const step = StepSchema.parse({
+      stepId: "s1",
+      nodeId: "resume.parse_fields",
+      inputMapping: {},
+      llmProvider: "gemini",
+    });
+    expect(step.llmProvider).toBe("gemini");
+  });
+
+  it("accepts openrouter as a valid llmProvider", () => {
+    const step = StepSchema.parse({
+      stepId: "s1",
+      nodeId: "resume.parse_fields",
+      inputMapping: {},
+      llmProvider: "openrouter",
+    });
+    expect(step.llmProvider).toBe("openrouter");
+  });
+
+  it("rejects an invalid llmProvider value", () => {
+    expect(() =>
+      StepSchema.parse({
+        stepId: "s1",
+        nodeId: "resume.parse_fields",
+        inputMapping: {},
+        llmProvider: "openai",
+      }),
+    ).toThrow();
+  });
 });
 
 describe("ChainSchema", () => {

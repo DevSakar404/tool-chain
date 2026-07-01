@@ -119,6 +119,33 @@ export function NodeInspector({
           </button>
         </div>
 
+        {/* LLM provider section — skill nodes only */}
+        {kind === "skill" && (
+          <div className="p-4 pb-0 space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              LLM Provider
+            </p>
+            <select
+              className="w-full text-xs rounded border border-border bg-background px-2 py-1"
+              value={step.llmProvider ?? ""}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_STEP_PROVIDER",
+                  stepId: step.stepId,
+                  provider: e.target.value
+                    ? (e.target.value as "anthropic" | "gemini" | "openrouter")
+                    : undefined,
+                })
+              }
+            >
+              <option value="">Default</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Gemini</option>
+              <option value="openrouter">OpenRouter (Qwen 2.5 72B)</option>
+            </select>
+          </div>
+        )}
+
         {/* Input wiring section */}
         <div className="p-4 space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">

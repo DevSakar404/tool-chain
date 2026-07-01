@@ -20,6 +20,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
     "@ai-sdk/google": "^1.2.22",
+    "@ai-sdk/openai-compatible": "^0.2.16",
     "ai": "^4.0.0",
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",

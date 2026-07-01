@@ -28,10 +28,13 @@ export type Ref = z.infer<typeof RefSchema>;
 // ---------------------------------------------------------------------------
 // Step — one position in a chain
 // ---------------------------------------------------------------------------
+export const LLMProviderNameSchema = z.enum(["anthropic", "gemini", "openrouter"]);
+
 export const StepSchema = z.object({
   stepId: z.string().min(1),
   nodeId: z.string().min(1),
   inputMapping: z.record(z.string(), RefSchema),
+  llmProvider: LLMProviderNameSchema.optional(),
 });
 export type Step = z.infer<typeof StepSchema>;
 
@@ -75,6 +78,10 @@ export interface StepRunRecord {
   error?: SafeError | undefined;
   startedAt: Date;
   finishedAt: Date;
+  /** Resolved provider:model label for this step's LLM call, if any. UI/logs only — not persisted to Postgres in v1. */
+  llmTarget?: string | undefined;
+  /** True when this step's LLM call was served by a non-first attempt (fallback). UI/logs only. */
+  llmFallbackUsed?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------------------

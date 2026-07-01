@@ -69,15 +69,15 @@ export interface IRunContext {
 
 ### 2. `GmailCapability` (adapter — `infra/gmail/GmailCapability.ts`)
 
-Reuses the proven `GoogleDriveCapability` shape: retry/backoff, size guard,
-`ChainError`, Storage upload, sha256.
+Extends the shared `GoogleApiCapability` base (`infra/google/`), which provides
+retry/backoff, auth fetch, size guard, `ChainError`, Storage upload, sha256 —
+the same base `GoogleDriveCapability` uses.
 
-Constructor options:
+Constructor options (`GoogleApiCapabilityOptions`):
 ```typescript
-export interface GmailCapabilityOptions {
+export interface GoogleApiCapabilityOptions {
   accessToken: string;
   storage: IStorage;
-  storageBucket?: string | undefined;
   maxSizeBytes?: number | undefined;
 }
 ```
