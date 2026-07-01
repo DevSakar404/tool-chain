@@ -260,6 +260,10 @@ export function ChainCanvas({
                     stroke="hsl(var(--border))"
                     strokeWidth={1}
                     className="transition-all cursor-pointer hover:scale-125"
+                    // SVG transforms pivot on the view-box origin by default, so a
+                    // bare scale() flings the circle away from the cursor and causes
+                    // a hover/un-hover jitter loop. Pivot on the circle's own center.
+                    style={{ transformBox: "fill-box", transformOrigin: "center" }}
                     onClick={() =>
                       dispatch({
                         type: "SET_SELECTION",
@@ -279,6 +283,8 @@ export function ChainCanvas({
                 stroke="hsl(var(--border))"
                 strokeWidth={1}
                 className="transition-all cursor-pointer hover:scale-125"
+                // Pivot the hover-scale on the circle's own center (see input port).
+                style={{ transformBox: "fill-box", transformOrigin: "center" }}
                 onClick={() =>
                   dispatch({
                     type: "SET_SELECTION",

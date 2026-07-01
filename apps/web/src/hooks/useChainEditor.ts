@@ -121,7 +121,10 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
 
     case "SET_TRIGGER":
-      return { ...state, trigger: action.payload, dirty: true };
+      // The trigger is run-time input, not part of the persisted chain
+      // (handleSave serializes state.chain, not state.trigger). Editing it must
+      // NOT mark the chain dirty — doing so spuriously disabled the Run button.
+      return { ...state, trigger: action.payload };
 
     case "REORDER_STEP": {
       if (!state.chain) return state;
@@ -161,7 +164,32 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
 
     case "REMOVE_STEP": {
       if (!state.chain) return state;
-      const steps = state.chain.steps.filter((s) => s.stepId !== action.stepId);
+      const remaining = state.chain.steps.filter((s) => s.stepId !== action.stepId);
+
+      // Auto-rewire refs that pointed at the removed step so deleting a node a
+      // later step depends on (e.g. swapping a source node) doesn't leave four
+      // dangling refs to hand-fix. Each broken ref is re-pointed at the nearest
+      // remaining step strictly before the referencing step — the only choice
+      // that yields a valid (earlier) source. The output-field `path` is kept:
+      // if the new source exposes a same-named field it resolves cleanly, and if
+      // not, validation still flags it, so we never silently invent a wrong wire.
+      const steps = remaining.map((step, i) => {
+        let changed = false;
+        const inputMapping: Record<string, Ref> = {};
+        for (const [fieldName, ref] of Object.entries(step.inputMapping)) {
+          if ("from" in ref && ref.from === action.stepId) {
+            const fallback = remaining[i - 1];
+            if (fallback) {
+              inputMapping[fieldName] = { from: fallback.stepId, path: ref.path };
+              changed = true;
+              continue;
+            }
+          }
+          inputMapping[fieldName] = ref;
+        }
+        return changed ? { ...step, inputMapping } : step;
+      });
+
       const chain = { ...state.chain, steps };
       return {
         ...state,

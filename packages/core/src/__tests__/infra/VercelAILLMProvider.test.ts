@@ -143,44 +143,97 @@ describe("VercelAILLMProvider", () => {
     expect(generateObjectMock).toHaveBeenCalledTimes(1);
   });
 
-  it("reports usage via onUsage on a successful call", async () => {
+  it("reports usage via onResult on a successful call", async () => {
     generateObjectMock.mockResolvedValueOnce({
       object: { ok: true },
       usage: { promptTokens: 12, completionTokens: 8, totalTokens: 20 },
+      response: { id: "msg_abc", headers: {} },
     });
-    const onUsage = vi.fn();
+    const onResult = vi.fn();
     const llm = new VercelAILLMProvider({
       primary: { provider: "anthropic", apiKey: "k" },
     });
 
-    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onUsage);
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
 
-    expect(onUsage).toHaveBeenCalledOnce();
-    expect(onUsage).toHaveBeenCalledWith({ promptTokens: 12, completionTokens: 8, totalTokens: 20 });
+    expect(onResult).toHaveBeenCalledOnce();
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usage: { promptTokens: 12, completionTokens: 8, totalTokens: 20 },
+      }),
+    );
   });
 
-  it("reports usage exactly once — only for the attempt that succeeds", async () => {
-    // Primary throws (no usage), fallback succeeds and reports usage.
+  it("reports trace identifiers (messageId + request-id) from the response", async () => {
+    generateObjectMock.mockResolvedValueOnce({
+      object: { ok: true },
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      response: { id: "msg_trace123", headers: { "request-id": "req_xyz789" } },
+    });
+    const onResult = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "k" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
+
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: "msg_trace123",
+        requestId: "req_xyz789",
+        target: "anthropic:default",
+      }),
+    );
+  });
+
+  it("falls back to x-request-id when request-id header is absent", async () => {
+    generateObjectMock.mockResolvedValueOnce({
+      object: { ok: true },
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      response: { id: "msg_1", headers: { "x-request-id": "req_fallback" } },
+    });
+    const onResult = vi.fn();
+    const llm = new VercelAILLMProvider({
+      primary: { provider: "anthropic", apiKey: "k" },
+    });
+
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
+
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: "req_fallback" }),
+    );
+  });
+
+  it("reports the result exactly once — only for the attempt that succeeds", async () => {
+    // Primary throws (no result), fallback succeeds and reports.
     generateObjectMock
       .mockRejectedValueOnce(new Error("primary down"))
       .mockResolvedValueOnce({
         object: { ok: true },
         usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        response: { id: "msg_fb", headers: { "request-id": "req_fb" } },
       });
-    const onUsage = vi.fn();
+    const onResult = vi.fn();
     const llm = new VercelAILLMProvider({
       primary: { provider: "anthropic", apiKey: "bad" },
       fallback: { provider: "gemini", apiKey: "good" },
     });
 
-    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onUsage);
+    await llm.generateObject(schema, SYSTEM, INPUT, undefined, onResult);
 
     expect(generateObjectMock).toHaveBeenCalledTimes(2);
-    expect(onUsage).toHaveBeenCalledOnce();
-    expect(onUsage).toHaveBeenCalledWith({ promptTokens: 5, completionTokens: 5, totalTokens: 10 });
+    expect(onResult).toHaveBeenCalledOnce();
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        messageId: "msg_fb",
+        requestId: "req_fb",
+        target: "gemini:default",
+      }),
+    );
   });
 
-  it("does not throw when the SDK omits usage and no onUsage is given", async () => {
+  it("does not throw when the SDK omits usage/response and no onResult is given", async () => {
     generateObjectMock.mockResolvedValueOnce({ object: { ok: true } });
     const llm = new VercelAILLMProvider({
       primary: { provider: "anthropic", apiKey: "k" },

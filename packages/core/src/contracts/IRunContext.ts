@@ -22,6 +22,18 @@ export interface IDriveCapability {
 }
 
 // ---------------------------------------------------------------------------
+// IGmailCapability — capability handle; never exposes raw credentials (D7)
+// ---------------------------------------------------------------------------
+export interface IGmailCapability {
+  /**
+   * Fetch the first resume-like (PDF/DOCX) attachment from a Gmail message and
+   * store it in Storage. Returns a BlobHandle; never returns raw bytes to the
+   * engine. Auth (the access token) is hidden inside the adapter.
+   */
+  fetchAttachment(messageId: string): Promise<BlobHandle>;
+}
+
+// ---------------------------------------------------------------------------
 // LLM provider selection — a node's preferred model is a declared property
 // (today in code; a "preferred LLM" column in the tool registry later).
 // ---------------------------------------------------------------------------
@@ -40,6 +52,23 @@ export interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+}
+
+// ---------------------------------------------------------------------------
+// LLMCallResult — what a single successful generateObject reports back:
+// token usage plus provider trace identifiers so the call can be correlated
+// to a specific Anthropic API request (the `messageId` is the `msg_…` id; the
+// `requestId` is Anthropic's `request-id` response header). Either trace field
+// may be undefined when the provider doesn't expose it (e.g. non-Anthropic).
+// ---------------------------------------------------------------------------
+export interface LLMCallResult {
+  usage: TokenUsage;
+  /** Provider-assigned response id, e.g. Anthropic `msg_…`. */
+  messageId?: string | undefined;
+  /** Anthropic `request-id` response header, for support/console correlation. */
+  requestId?: string | undefined;
+  /** Resolved provider:model label that actually served the call. */
+  target?: string | undefined;
 }
 
 /**
@@ -63,16 +92,18 @@ export interface ILLMProvider {
    * @param prefer Optional per-node provider preference. When set, this target
    *   is attempted first; on failure the call still falls through to the
    *   globally-configured primary → fallback chain (resilience preserved).
-   * @param onUsage Optional callback invoked with token usage from the single
-   *   successful attempt (never from a failed attempt that falls through, so
-   *   usage is counted exactly once).
+   * @param onResult Optional callback invoked once, with the result of the
+   *   single successful attempt (never from a failed attempt that falls
+   *   through). Carries token usage plus provider trace identifiers so the
+   *   caller can both account for tokens and correlate the call to a specific
+   *   Anthropic API request.
    */
   generateObject<T>(
     schema: ZodType<T>,
     systemPrompt: string,
     userInput: unknown,
     prefer?: LLMTarget,
-    onUsage?: (usage: TokenUsage) => void,
+    onResult?: (result: LLMCallResult) => void,
   ): Promise<T>;
 }
 
@@ -92,6 +123,7 @@ export interface IRunContext {
   readonly runId: string;
   readonly logger: ILogger;
   readonly drive: IDriveCapability;
+  readonly gmail: IGmailCapability;
   readonly llm: ILLMProvider;
   readonly storage: IStorage;
   /** Run-scoped LLM token-usage accumulator. */

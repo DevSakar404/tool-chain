@@ -19,6 +19,8 @@ interface Props {
   stepLog: string[];
   elapsedMs: number;
   errorMsg: string | null;
+  /** Total LLM tokens for the run; null/0 hides the token readout. */
+  totalTokens?: number | null;
 }
 
 function parseStepStates(stepLog: string[]): Record<string, StepState> {
@@ -83,7 +85,7 @@ function statusChip(status: RunStatus) {
   return null;
 }
 
-export function RunStatusCard({ status, stepLog, elapsedMs, errorMsg }: Props) {
+export function RunStatusCard({ status, stepLog, elapsedMs, errorMsg, totalTokens }: Props) {
   if (status === "idle") return null;
 
   const stepStates = parseStepStates(stepLog);
@@ -95,9 +97,14 @@ export function RunStatusCard({ status, stepLog, elapsedMs, errorMsg }: Props) {
         <div className="flex items-center gap-2">
           {statusChip(status)}
         </div>
-        <span className="text-sm font-mono tabular-nums text-muted-foreground">
-          {formatElapsed(elapsedMs)}
-        </span>
+        <div className="flex items-center gap-3 text-sm font-mono tabular-nums text-muted-foreground">
+          {totalTokens != null && totalTokens > 0 && (
+            <span title="Total LLM tokens used by this run">
+              {/* ≈ {totalTokens.toLocaleString()} tokens */}
+            </span>
+          )}
+          <span>{formatElapsed(elapsedMs)}</span>
+        </div>
       </div>
 
       {/* Stepper */}

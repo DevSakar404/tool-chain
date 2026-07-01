@@ -68,6 +68,7 @@ function makeFakeCtx(): IRunContext {
     runId: "test-run",
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     drive: { download: vi.fn() },
+    gmail: { fetchAttachment: vi.fn() },
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
     usage: new UsageAccumulator(),
@@ -196,9 +197,9 @@ describe("ChainEngine token usage", () => {
         _system: unknown,
         _input: unknown,
         _prefer: unknown,
-        onUsage?: (u: TokenUsage) => void,
+        onResult?: (r: { usage: TokenUsage }) => void,
       ) => {
-        onUsage?.(usage);
+        onResult?.({ usage });
         return output;
       },
     );
@@ -229,6 +230,7 @@ describe("ChainEngine token usage", () => {
       runId: "test-run",
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       drive: { download: vi.fn() },
+      gmail: { fetchAttachment: vi.fn() },
       llm: { generateObject },
       storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
       usage,

@@ -159,6 +159,26 @@ describe("editorReducer — SET_REF", () => {
   });
 });
 
+describe("editorReducer — SET_TRIGGER", () => {
+  it("updates the trigger payload", () => {
+    const state = editorReducer(loadedState(), {
+      type: "SET_TRIGGER",
+      payload: { fileId: "abc123" },
+    });
+    expect(state.trigger).toEqual({ fileId: "abc123" });
+  });
+
+  it("does NOT mark the chain dirty (trigger is run-time input, not persisted)", () => {
+    // Regression guard: a dirty chain disables the Run button, and editing the
+    // trigger must not block Run.
+    const state = editorReducer(loadedState(), {
+      type: "SET_TRIGGER",
+      payload: { fileId: "abc123" },
+    });
+    expect(state.dirty).toBe(false);
+  });
+});
+
 describe("editorReducer — MARK_SAVED", () => {
   it("sets dirty=false", () => {
     let state = editorReducer(loadedState(), {

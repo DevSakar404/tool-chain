@@ -49,7 +49,17 @@ export class ResumeParseFieldsNode extends BaseNode<Input, ResumeDTO> {
       SYSTEM_PROMPT,
       input,
       this.preferredLLM,
-      (usage) => ctx.usage.add(usage),
+      (result) => {
+        ctx.usage.add(result.usage);
+        // Trace identifiers for correlating this call to an Anthropic request.
+        ctx.logger.info("LLM call", {
+          nodeId: this.id,
+          target: result.target,
+          messageId: result.messageId,
+          requestId: result.requestId,
+          totalTokens: result.usage.totalTokens,
+        });
+      },
     );
   }
 }

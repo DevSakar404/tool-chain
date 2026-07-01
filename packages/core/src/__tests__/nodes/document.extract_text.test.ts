@@ -14,6 +14,7 @@ function makeBlob(mime: string, text: string): { blob: BlobHandle; ctx: IRunCont
     runId: "r1",
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     drive: { download: vi.fn() },
+    gmail: { fetchAttachment: vi.fn() },
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn().mockResolvedValue(buf), delete: vi.fn() },
     usage: new UsageAccumulator(),

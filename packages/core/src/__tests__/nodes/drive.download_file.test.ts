@@ -17,6 +17,7 @@ function makeCtx(blobHandle: BlobHandle = fakeBlobHandle): IRunContext {
     runId: "r1",
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     drive: { download: vi.fn().mockResolvedValue(blobHandle) },
+    gmail: { fetchAttachment: vi.fn() },
     llm: { generateObject: vi.fn() },
     storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
     usage: new UsageAccumulator(),

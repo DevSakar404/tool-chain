@@ -97,7 +97,11 @@ export function ChainEditor({ state, dispatch }: Props) {
       <div className="flex flex-1 overflow-hidden">
         <NodePalette
           catalog={state.catalog}
-          insertAtIndex={state.chain.steps.length}
+          // Insert at the selected step's slot (pushing it + later steps right) so
+          // you can drop a node anywhere — e.g. select drive.download_file and click
+          // gmail.fetch_attachment to put gmail at slot 0 for a source-node swap.
+          // Falls back to appending when nothing is selected.
+          insertAtIndex={selectedStepIndex >= 0 ? selectedStepIndex : state.chain.steps.length}
           dispatch={dispatch}
         />
         {/* Canvas + bottom panels + inspector overlay */}

@@ -9,6 +9,7 @@ const noopCtx: IRunContext = {
   runId: "test-run",
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   drive: { download: vi.fn() },
+  gmail: { fetchAttachment: vi.fn() },
   llm: { generateObject: vi.fn() },
   storage: { upload: vi.fn(), download: vi.fn(), delete: vi.fn() },
   usage: new UsageAccumulator(),

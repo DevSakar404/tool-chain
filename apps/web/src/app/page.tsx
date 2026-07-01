@@ -15,6 +15,7 @@ export default function HomePage() {
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [result, setResult] = useState<ResumeDTO | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [totalTokens, setTotalTokens] = useState<number | null>(null);
   const [stepLog, setStepLog] = useState<string[]>([]);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number | null>(null);
@@ -49,6 +50,7 @@ export default function HomePage() {
     setStatus("running");
     setResult(null);
     setErrorMsg(null);
+    setTotalTokens(null);
     setStepLog([]);
     startTimer();
 
@@ -98,8 +100,16 @@ export default function HomePage() {
               setStepLog((prev) => [...prev, `Step ${stepEvt.stepRun.stepId}: ${stepEvt.stepRun.status}`]);
             }
           } else if (evt.event === "done") {
-            const doneData = evt.data as { ok: boolean; output?: ResumeDTO; error?: { message: string } };
+            const doneData = evt.data as {
+              ok: boolean;
+              output?: ResumeDTO;
+              error?: { message: string };
+              totalTokens?: number;
+            };
             stopTimer();
+            if (typeof doneData.totalTokens === "number") {
+              setTotalTokens(doneData.totalTokens);
+            }
             if (doneData.ok && doneData.output) {
               setResult(doneData.output);
               setStatus("done");
@@ -154,6 +164,7 @@ export default function HomePage() {
         stepLog={stepLog}
         elapsedMs={elapsedMs}
         errorMsg={errorMsg}
+        totalTokens={totalTokens}
       />
 
       {/* gen-UI swap point — isolated ResultView */}

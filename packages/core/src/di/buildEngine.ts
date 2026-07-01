@@ -3,6 +3,7 @@ import { ChainEngine } from "../engine/ChainEngine.js";
 import { UsageAccumulator } from "../engine/UsageAccumulator.js";
 import { registerAll } from "../nodes/index.js";
 import { GoogleDriveCapability } from "../infra/drive/GoogleDriveCapability.js";
+import { GmailCapability } from "../infra/gmail/GmailCapability.js";
 import { VercelAILLMProvider, type ResolvedTarget } from "../infra/llm/VercelAILLMProvider.js";
 import type { LLMProviderName } from "../contracts/IRunContext.js";
 import { SupabaseChainRepository } from "../infra/supabase/SupabaseChainRepository.js";
@@ -29,6 +30,12 @@ export interface BuildEngineOptions {
   db: SupabaseClientLike;
   /** Google OAuth2 access token (ya29.xxx) — obtain from OAuth Playground or gcloud auth */
   googleAccessToken: string;
+  /**
+   * Gmail OAuth2 access token (ya29.xxx), scope `gmail.readonly`. Powers the
+   * gmail.fetch_attachment node. Short-lived (~1h) — refresh as needed. May be
+   * the same Google token as `googleAccessToken` if it carries both scopes.
+   */
+  gmailAccessToken: string;
   anthropicApiKey: string;
   /** Gemini API key — required only when gemini is the active or fallback provider. */
   geminiApiKey?: string | undefined;
@@ -67,6 +74,11 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
 
   const drive = new GoogleDriveCapability({
     accessToken: opts.googleAccessToken,
+    storage,
+  });
+
+  const gmail = new GmailCapability({
+    accessToken: opts.gmailAccessToken,
     storage,
   });
 
@@ -122,6 +134,7 @@ export function buildEngine(opts: BuildEngineOptions): EngineBundle {
     runId,
     logger: new ConsoleLogger(runId),
     drive,
+    gmail,
     llm,
     storage,
     usage: new UsageAccumulator(),

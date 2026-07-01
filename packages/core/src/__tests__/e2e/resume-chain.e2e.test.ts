@@ -56,17 +56,21 @@ function makeFakeCtx(runId: string): IRunContext {
     drive: {
       download: vi.fn().mockResolvedValue(fakeBlob),
     },
+    gmail: {
+      fetchAttachment: vi.fn().mockResolvedValue(fakeBlob),
+    },
     llm: {
-      // Mirror the real provider: return the object and report usage via onUsage.
+      // Mirror the real provider: return the object and report usage + trace
+      // identifiers via onResult.
       generateObject: vi.fn(
         async (
           _schema: unknown,
           _system: unknown,
           _input: unknown,
           _prefer: unknown,
-          onUsage?: (u: TokenUsage) => void,
+          onResult?: (r: { usage: TokenUsage; messageId?: string; requestId?: string }) => void,
         ): Promise<unknown> => {
-          onUsage?.(CASSETTE_USAGE);
+          onResult?.({ usage: CASSETTE_USAGE, messageId: "msg_e2e", requestId: "req_e2e" });
           return cassette;
         },
       ) as IRunContext["llm"]["generateObject"],

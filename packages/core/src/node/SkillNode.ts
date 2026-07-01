@@ -22,7 +22,18 @@ export class SkillNode<I, O> extends BaseNode<I, O> {
       this.systemPrompt,
       input,
       this.preferredLLM,
-      (usage) => ctx.usage.add(usage),
+      (result) => {
+        ctx.usage.add(result.usage);
+        // Log the provider trace identifiers against the run so this LLM call
+        // can be correlated to a specific Anthropic API request.
+        ctx.logger.info("LLM call", {
+          nodeId: this.id,
+          target: result.target,
+          messageId: result.messageId,
+          requestId: result.requestId,
+          totalTokens: result.usage.totalTokens,
+        });
+      },
     );
   }
 }

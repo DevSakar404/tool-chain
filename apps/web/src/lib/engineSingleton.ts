@@ -14,6 +14,10 @@ export function getEngineBundle(): EngineBundle {
     bundle = buildEngine({
       db,
       googleAccessToken: process.env["GOOGLE_ACCESS_TOKEN"] ?? "",
+      // Falls back to the Google token when a dedicated Gmail token isn't set —
+      // a single OAuth token can carry both drive.readonly and gmail.readonly.
+      gmailAccessToken:
+        process.env["GMAIL_ACCESS_TOKEN"] ?? process.env["GOOGLE_ACCESS_TOKEN"] ?? "",
       anthropicApiKey: process.env["ANTHROPIC_API_KEY"] ?? "",
       geminiApiKey: process.env["GEMINI_API_KEY"] ?? "",
       ...(process.env["LLM_PROVIDER"] !== undefined
