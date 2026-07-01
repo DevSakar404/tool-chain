@@ -10,9 +10,12 @@ export interface SupabaseDb {
   };
 }
 
-export interface SupabaseQueryBuilder extends PromiseLike<{ data: Record<string, unknown> | null; error: SupabaseError | null }> {
+export interface SupabaseQueryBuilder extends PromiseLike<{ data: Record<string, unknown>[] | null; error: SupabaseError | null }> {
   select(columns: string): SupabaseQueryBuilder;
   eq(column: string, value: unknown): SupabaseQueryBuilder;
+  in(column: string, values: unknown[]): SupabaseQueryBuilder;
+  order(column: string, opts?: { ascending?: boolean }): SupabaseQueryBuilder;
+  limit(count: number): SupabaseQueryBuilder;
   single(): Promise<{ data: Record<string, unknown> | null; error: SupabaseError | null }>;
   insert(data: Record<string, unknown>): Promise<{ error: SupabaseError | null }>;
   upsert(data: Record<string, unknown>): Promise<{ error: SupabaseError | null }>;

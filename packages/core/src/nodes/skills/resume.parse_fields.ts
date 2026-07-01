@@ -14,8 +14,15 @@ const ExperienceSchema = z.object({
 
 export const ResumeDTOSchema = z.object({
   name: z.string(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  location: z.string().optional(),
+  linkedinUrl: z.string().optional(),
+  portfolioUrl: z.string().optional(),
   experience: z.array(ExperienceSchema),
   keyProjects: z.array(z.string()),
+  skills: z.array(z.string()),
+  certifications: z.array(z.string()),
   college: z.string(),
 });
 
@@ -28,6 +35,8 @@ const SYSTEM_PROMPT = `You are a precise resume parser.
 Extract structured data from the provided resume text.
 Return ONLY the JSON object matching the schema — no explanation, no markdown fences.
 For experience entries include company, role, startDate (YYYY-MM format), and optionally endDate and summary.
+Extract email, phone, location, linkedinUrl, and portfolioUrl when present; omit the field entirely if not found.
+skills is a flat list of technical/soft skills mentioned anywhere in the resume; certifications is a flat list of named professional certifications.
 If a field cannot be determined, use an empty string or empty array.`;
 
 export class ResumeParseFieldsNode extends BaseNode<Input, ResumeDTO> {

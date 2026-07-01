@@ -1,6 +1,10 @@
 {
   "name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "portfolioUrl": "github.com/janedoe",
   "college": "Massachusetts Institute of Technology (MIT)",
+  "skills": ["TypeScript", "Node.js", "Kafka", "Flink", "Clickhouse", "CI/CD"],
+  "certifications": [],
   "experience": [
     {
       "company": "Acme Corp",

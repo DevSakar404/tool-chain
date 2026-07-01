@@ -1,5 +1,5 @@
 import "server-only";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { ChainSchema } from "@tool-chain/core";
 import { getEngineBundle } from "@/lib/engineSingleton";
 

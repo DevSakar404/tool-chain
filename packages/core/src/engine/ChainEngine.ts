@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import type { Chain, RunRecord, StepRunRecord, SafeError } from "../contracts/dtos.js";
+import type { RunRecord, StepRunRecord, SafeError } from "../contracts/dtos.js";
 import type { IRunContext } from "../contracts/IRunContext.js";
 import type { IRunRepository, IChainRepository } from "../contracts/IRepositories.js";
-import { NodeRegistry } from "../registry/NodeRegistry.js";
+import type { NodeRegistry } from "../registry/NodeRegistry.js";
 import { InputResolver } from "./InputResolver.js";
 import { NodeNotFoundError } from "../errors/index.js";
 import { toSafeError } from "../node/BaseNode.js";

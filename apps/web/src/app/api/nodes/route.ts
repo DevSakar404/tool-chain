@@ -1,5 +1,5 @@
 import "server-only";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { describeNode } from "@tool-chain/core";
 import { getEngineBundle } from "@/lib/engineSingleton";
 

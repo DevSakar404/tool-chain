@@ -10,6 +10,7 @@ import { NodeInspector } from "./NodeInspector";
 import { NodePalette } from "./NodePalette";
 import { Toolbar } from "./Toolbar";
 import { TriggerPanel } from "./TriggerPanel";
+import { RunProgressBar } from "./RunProgressBar";
 import { ResultView } from "@/components/ResultView";
 
 const API_SECRET = process.env["NEXT_PUBLIC_RUN_API_SECRET"] ?? "";
@@ -134,22 +135,23 @@ export function ChainEditor({ state, dispatch }: Props) {
               />
             )}
           </div>
-          {state.run.error && (
-            <div className="border-t bg-destructive/10 px-4 py-2 text-sm text-destructive shrink-0">
-              {state.run.error}
-            </div>
-          )}
           {state.run.result != null && (
             <div className="border-t bg-background overflow-y-auto max-h-64 p-4 shrink-0">
-              {state.run.totalTokens != null && state.run.totalTokens > 0 && (
-                <p className="mb-3 text-xs text-muted-foreground">
-                  ≈ {state.run.totalTokens.toLocaleString()} tokens
-                </p>
-              )}
               <ResultView resume={state.run.result as ResumeDTO | null} />
             </div>
           )}
-          <TriggerPanel trigger={state.trigger} dispatch={dispatch} />
+          {(running || state.run.result != null || state.run.error != null) && (
+            <RunProgressBar steps={state.chain.steps} run={state.run} stepAverages={state.stepAverages} />
+          )}
+          <TriggerPanel
+            chain={state.chain}
+            catalog={state.catalog}
+            trigger={state.trigger}
+            dispatch={dispatch}
+            onRun={() => void handleRun()}
+            canRun={!state.dirty && state.validation.valid && !running && !saving}
+            running={running}
+          />
         </div>
       </div>
 

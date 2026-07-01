@@ -1,4 +1,4 @@
-import { type ZodType, ZodError } from "zod";
+import { type ZodType } from "zod";
 import type { INode, NodeKind, StepConfig } from "../contracts/INode.js";
 import type { IRunContext, LLMTarget } from "../contracts/IRunContext.js";
 import type { StepResult, SafeError } from "../contracts/dtos.js";

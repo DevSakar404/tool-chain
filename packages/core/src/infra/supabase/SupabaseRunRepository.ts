@@ -1,5 +1,5 @@
 import type { RunRecord, StepRunRecord } from "../../contracts/dtos.js";
-import type { IRunRepository } from "../../contracts/IRepositories.js";
+import type { IRunRepository, StepDuration } from "../../contracts/IRepositories.js";
 import { ChainError } from "../../errors/index.js";
 import type { SupabaseDb } from "./SupabaseTypes.js";
 
@@ -58,5 +58,30 @@ export class SupabaseRunRepository implements IRunRepository {
 
     const result = await this.db.from("step_runs").update(update).eq("id", id);
     if (result.error) throw new ChainError(`updateStepRun failed: ${result.error.message}`, "DB_ERROR");
+  }
+
+  async listRecentStepDurations(chainId: string, limit: number): Promise<StepDuration[]> {
+    const { data: runs, error: runsError } = await this.db
+      .from("runs")
+      .select("id")
+      .eq("chain_id", chainId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (runsError) throw new ChainError(`listRecentStepDurations failed: ${runsError.message}`, "DB_ERROR");
+    if (!runs || runs.length === 0) return [];
+
+    const runIds = runs.map((r) => r["id"] as string);
+    const { data: stepRuns, error: stepRunsError } = await this.db
+      .from("step_runs")
+      .select("step_id, started_at, finished_at")
+      .in("run_id", runIds);
+    if (stepRunsError) throw new ChainError(`listRecentStepDurations failed: ${stepRunsError.message}`, "DB_ERROR");
+    if (!stepRuns) return [];
+
+    return stepRuns.map((s) => ({
+      stepId: s["step_id"] as string,
+      durationMs:
+        new Date(s["finished_at"] as string).getTime() - new Date(s["started_at"] as string).getTime(),
+    }));
   }
 }

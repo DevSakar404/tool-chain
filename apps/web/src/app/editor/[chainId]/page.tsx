@@ -26,15 +26,31 @@ async function fetchCatalog(): Promise<NodeCatalogEntry[]> {
   return data.nodes;
 }
 
+// Historical pacing data for the run progress bar — best-effort. No past runs
+// yet (or a transient error) just means the bar falls back to real-time-only
+// progress, so failures here must never block the editor from loading.
+async function fetchStepAverages(chainId: string): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`/api/chains/${chainId}/step-averages`, {
+      headers: { "x-run-secret": API_SECRET },
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as { averageMsByStepId: Record<string, number> };
+    return data.averageMsByStepId;
+  } catch {
+    return {};
+  }
+}
+
 export default function EditorPage() {
   const { chainId } = useParams<{ chainId: string }>();
   const { state, dispatch } = useChainEditor();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchChain(chainId), fetchCatalog()])
-      .then(([chain, catalog]) => {
-        if (!cancelled) dispatch({ type: "LOAD", chain, catalog });
+    Promise.all([fetchChain(chainId), fetchCatalog(), fetchStepAverages(chainId)])
+      .then(([chain, catalog, stepAverages]) => {
+        if (!cancelled) dispatch({ type: "LOAD", chain, catalog, stepAverages });
       })
       .catch((err: unknown) => {
         if (!cancelled) {

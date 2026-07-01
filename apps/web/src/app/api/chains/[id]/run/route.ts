@@ -1,5 +1,5 @@
 import "server-only";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getEngineBundle } from "@/lib/engineSingleton";
 
 export async function POST(
@@ -27,8 +27,6 @@ export async function POST(
     });
   }
 
-  const { engine } = getEngineBundle();
-
   // Stream structured SSE events — each step fires in real-time via onStep callback
   const stream = new ReadableStream({
     async start(controller) {
@@ -36,8 +34,18 @@ export async function POST(
         new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`);
 
       try {
+        // getEngineBundle() runs composition-root wiring (buildEngine) on first
+        // call, which throws synchronously on a misconfigured provider/key.
+        // Constructing it inside this try, not before the stream starts, means
+        // that failure surfaces as a graceful SSE "error" event instead of a
+        // bare, bodyless 500 the client can't parse or explain to the user.
+        const { engine } = getEngineBundle();
         const result = await engine.run(chainId, trigger, (evt) => {
-          controller.enqueue(encode({ event: "step", data: evt }));
+          const data =
+            evt.event === "step:running"
+              ? { stepId: evt.stepId, status: "running" }
+              : { stepId: evt.stepRun.stepId, status: evt.stepRun.status === "ok" ? "ok" : "error" };
+          controller.enqueue(encode({ event: "step", data }));
         });
 
         controller.enqueue(

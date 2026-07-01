@@ -1,4 +1,5 @@
 import type { ZodType } from "zod";
+import type { z } from "zod";
 import type { BlobHandle, LLMProviderNameSchema } from "./dtos.js";
 
 // ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ export interface IGmailCapability {
 // LLM provider selection — a node's preferred model is a declared property
 // (today in code; a "preferred LLM" column in the tool registry later).
 // ---------------------------------------------------------------------------
-export type LLMProviderName = import("zod").infer<typeof LLMProviderNameSchema>;
+export type LLMProviderName = z.infer<typeof LLMProviderNameSchema>;
 
 export interface LLMTarget {
   provider: LLMProviderName;

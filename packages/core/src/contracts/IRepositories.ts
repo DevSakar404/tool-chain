@@ -16,4 +16,16 @@ export interface IRunRepository {
     id: string,
     patch: Partial<Pick<StepRunRecord, "status" | "output" | "error" | "finishedAt">>,
   ): Promise<void>;
+  /**
+   * Step durations from the most recent `limit` runs of a chain. Used to
+   * compute historical per-step average durations for the editor's progress
+   * bar. `stepId` is stable across runs of the same chain (e.g. "s1", "s2"),
+   * so callers group by it.
+   */
+  listRecentStepDurations(chainId: string, limit: number): Promise<StepDuration[]>;
+}
+
+export interface StepDuration {
+  stepId: string;
+  durationMs: number;
 }

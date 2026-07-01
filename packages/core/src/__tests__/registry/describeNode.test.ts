@@ -4,6 +4,7 @@ import { describeNode } from "../../registry/describeNode.js";
 import { driveDownloadFileNode } from "../../nodes/tools/drive.download_file.js";
 import { documentExtractTextNode } from "../../nodes/tools/document.extract_text.js";
 import { resumeParseFieldsNode } from "../../nodes/skills/resume.parse_fields.js";
+import type { INode } from "../../contracts/INode.js";
 
 describe("describeNode", () => {
   it("describes drive.download_file input fields", () => {
@@ -59,7 +60,7 @@ describe("describeNode", () => {
       outputSchema: z.object({ result: z.string() }),
       execute: async () => ({ ok: true as const, output: { result: "" } }),
     };
-    const entry = describeNode(syntheticNode as unknown as import("../../contracts/INode.js").INode);
+    const entry = describeNode(syntheticNode as unknown as INode);
     const requiredField = entry.inputFields.find((f) => f.name === "required_field");
     const optionalField = entry.inputFields.find((f) => f.name === "optional_field");
     expect(requiredField?.required).toBe(true);

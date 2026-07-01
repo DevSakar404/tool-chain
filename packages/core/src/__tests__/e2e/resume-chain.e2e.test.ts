@@ -48,6 +48,7 @@ const fakeRunRepo: IRunRepository = {
   updateRun: vi.fn(),
   createStepRun: vi.fn().mockImplementation(async (s) => { stepRuns.push(s); }),
   updateStepRun: vi.fn(),
+  listRecentStepDurations: vi.fn().mockResolvedValue([]),
 };
 
 function makeFakeCtx(runId: string): IRunContext {
@@ -123,6 +124,8 @@ describe("e2e: resume-chain", () => {
       expect(parsed.data.college).toContain("MIT");
       expect(parsed.data.experience.length).toBeGreaterThan(0);
       expect(parsed.data.keyProjects.length).toBeGreaterThan(0);
+      expect(parsed.data.email).toBe("jane.doe@example.com");
+      expect(parsed.data.skills.length).toBeGreaterThan(0);
     }
   });
 

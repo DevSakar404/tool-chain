@@ -1,0 +1,26 @@
+{
+  "skill_name": "add-tool-node",
+  "evals": [
+    {
+      "id": 0,
+      "name": "gmail-fetch-attachment-new-capability",
+      "prompt": "Add a tool node to the tool-chain engine that fetches the first PDF/DOCX attachment from a Gmail message given a messageId and returns a BlobHandle, then register it. The repo is at /Users/sakar/Documents/project/tool-chain.",
+      "expected_output": "Capability iface on IRunContext, adapter under infra/gmail, node in nodes/tools/gmail.fetch_attachment.ts extending BaseNode (thin run delegating to ctx.gmail), registered in nodes/index.ts, buildEngine wiring + GMAIL_ACCESS_TOKEN. Node test written. No fetch/token in the node.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "slack-post-message-new-service",
+      "prompt": "I need a new tool node that posts a message to a Slack channel via the Slack Web API (chat.postMessage) and add it to the chain registry. Repo: /Users/sakar/Documents/project/tool-chain.",
+      "expected_output": "Recognizes Slack is a new external service: ISlackCapability on IRunContext, adapter under infra/slack, node nodes/tools/slack.post_message.ts delegating to ctx.slack, registered in nodes/index.ts, wired in buildEngine with a token. Typed ChainError on API failure. Node holds no token.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "pure-transform-no-adapter",
+      "prompt": "Add a tool node to the chain that takes an input with a `text` field and returns it uppercased. Register it. Repo is /Users/sakar/Documents/project/tool-chain.",
+      "expected_output": "Recognizes this is a pure transform needing NO capability/adapter: just nodes/tools/<id>.ts extending BaseNode with in {text} / out {text}, registered in nodes/index.ts. No changes to IRunContext, infra/, or buildEngine. Node test written.",
+      "files": []
+    }
+  ]
+}

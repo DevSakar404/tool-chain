@@ -58,6 +58,7 @@ function makeFakeRepos(): { chainRepo: IChainRepository; runRepo: IRunRepository
       updateRun: vi.fn(),
       createStepRun: vi.fn().mockImplementation(async (s) => stepRuns.push(s)),
       updateStepRun: vi.fn(),
+      listRecentStepDurations: vi.fn().mockResolvedValue([]),
     },
   };
 }

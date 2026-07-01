@@ -91,14 +91,8 @@ export default function HomePage() {
           }
 
           if (evt.event === "step") {
-            const stepEvt = evt.data as
-              | { event: "step:running"; stepId: string }
-              | { event: "step:done"; stepRun: { stepId: string; status: "ok" | "failed" } };
-            if (stepEvt.event === "step:running") {
-              setStepLog((prev) => [...prev, `Step ${stepEvt.stepId}: running`]);
-            } else {
-              setStepLog((prev) => [...prev, `Step ${stepEvt.stepRun.stepId}: ${stepEvt.stepRun.status}`]);
-            }
+            const stepEvt = evt.data as { stepId: string; status: "running" | "ok" | "error" };
+            setStepLog((prev) => [...prev, `Step ${stepEvt.stepId}: ${stepEvt.status}`]);
           } else if (evt.event === "done") {
             const doneData = evt.data as {
               ok: boolean;

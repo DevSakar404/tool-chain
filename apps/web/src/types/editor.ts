@@ -36,4 +36,6 @@ export interface EditorState {
   trigger: Record<string, unknown>;
   run: RunState;
   loadError: string | null;
+  /** Historical average duration (ms) per stepId, from past runs. Empty until loaded or if there's no history yet. */
+  stepAverages: Record<string, number>;
 }

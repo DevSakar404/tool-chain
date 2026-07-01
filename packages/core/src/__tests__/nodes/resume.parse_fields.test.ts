@@ -7,10 +7,13 @@ import { iNodeConformanceSuite } from "../contract/INode.conformance.js";
 
 const fakeResumeDTO: ResumeDTO = {
   name: "Jane Doe",
+  email: "jane.doe@example.com",
   experience: [
     { company: "Acme Corp", role: "Engineer", startDate: "2020-01" },
   ],
   keyProjects: ["ProjectX"],
+  skills: ["TypeScript", "Node.js"],
+  certifications: [],
   college: "MIT",
 };
 
@@ -77,5 +80,27 @@ describe("resume.parse_fields behaviour", () => {
       expect(result.kind).toBe("NodeError");
       expect(result.error.message).toBe("rate limited");
     }
+  });
+
+  it("accepts a DTO omitting all optional contact fields", async () => {
+    const minimal: ResumeDTO = {
+      name: "Jane Doe",
+      experience: [],
+      keyProjects: [],
+      skills: [],
+      certifications: [],
+      college: "MIT",
+    };
+    const ctx = makeCtx(minimal);
+    const result = await resumeParseFieldsNode.execute(validInput, ctx);
+    expect(result).toEqual({ ok: true, output: minimal });
+  });
+
+  it("returns OutputInvalid when skills or certifications are missing", async () => {
+    const { skills: _skills, ...withoutSkills } = fakeResumeDTO;
+    const ctx = makeCtx(withoutSkills);
+    const result = await resumeParseFieldsNode.execute(validInput, ctx);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.kind).toBe("OutputInvalid");
   });
 });

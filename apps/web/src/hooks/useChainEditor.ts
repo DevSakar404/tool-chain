@@ -12,7 +12,7 @@ import type {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type EditorAction =
-  | { type: "LOAD"; chain: Chain; catalog: NodeCatalogEntry[] }
+  | { type: "LOAD"; chain: Chain; catalog: NodeCatalogEntry[]; stepAverages?: Record<string, number> }
   | { type: "SET_SELECTION"; stepId: string | null }
   | { type: "SET_REF"; stepId: string; fieldName: string; ref: Ref }
   | { type: "SET_STEP_PROVIDER"; stepId: string; provider: LLMProviderName | undefined }
@@ -39,6 +39,7 @@ export const initialEditorState: EditorState = {
   trigger: {},
   run: { active: false, stepStatuses: {}, result: null, error: null, totalTokens: null },
   loadError: null,
+  stepAverages: {},
 };
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         dirty: false,
         validation,
         loadError: null,
+        stepAverages: action.stepAverages ?? {},
       };
     }
 
